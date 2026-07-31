@@ -1,0 +1,54 @@
+<!-- result count (replaces the outer meta div via OOB swap) -->
+<div id="result-meta"
+     hx-swap-oob="innerHTML">
+  {% if section_count == 0 %}
+    No sections found
+  {% else %}
+    {{ section_count }} section{{ 's' if section_count != 1 else '' }} across {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
+  {% endif %}
+</div>
+
+{% if courses %}
+  {% for course in courses %}
+  <div class="course-block">
+    <div class="course-header">{{ course.subject }} {{ course.course_number }} — {{ course.course_name }}</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Class #</th>
+          <th>Section</th>
+          <th>Days &amp; Times</th>
+          <th>Instructor</th>
+          <th>Mode</th>
+          <th>Dates</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for section in course.sections %}
+        <tr>
+          <td>{{ section.class_number }}</td>
+          <td>{{ section.section_code }}</td>
+          <td>{{ section.days_times or '—' }}</td>
+          <td>{{ section.instructor or 'TBA' }}</td>
+          <td style="white-space:nowrap;">{{ section.instruction_mode or '—' }}</td>
+          <td style="white-space:nowrap;">{{ section.meeting_dates or '—' }}</td>
+          <td>
+            <span class="badge badge-{{ section.status }}">
+              {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
+            </span>
+          </td>
+          <td id="watch-btn-{{ section.class_number }}">
+            {% set is_watching = section.class_number in watching %}
+            {% include "partials/watch_button.html" with context %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="meta" style="padding:1rem 0;">No sections match your filters. Try broadening your search.</p>
+{% endif %}

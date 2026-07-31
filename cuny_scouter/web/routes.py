@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_, cast, String
 from sqlalchemy.orm import Session
 
 from cuny_scouter.db.models import Section, ScrapeRun, Student, Watch
@@ -28,29 +29,105 @@ def _watched_classes(student: Student | None) -> set[int]:
 
 # ── Section browser ──────────────────────────────────────────────────────────
 
+DAYS = [
+    ("Mo", "Mon"), ("Tu", "Tue"), ("We", "Wed"),
+    ("Th", "Thu"), ("Fr", "Fri"), ("Sa", "Sat"),
+]
+
+MODES = [
+    ("In Person", "In Person"),
+    ("Online Synchronous", "Online Sync"),
+    ("Online Asynchronous", "Online Async"),
+    ("Hybrid Synchronous", "Hybrid Sync"),
+    ("Hybrid Asynchronous", "Hybrid Async"),
+    ("Online Mix", "Online Mix"),
+    ("HyField", "HyField"),
+]
+
+
+def _apply_filters(query, q: str, subject: str, status: str, mode: str, days: list[str]):
+    if subject:
+        query = query.filter(Section.subject == subject)
+    if status:
+        query = query.filter(Section.status == status)
+    if mode:
+        query = query.filter(Section.instruction_mode == mode)
+    if days:
+        for day in days:
+            query = query.filter(Section.days_times.ilike(f"%{day}%"))
+    if q:
+        term = f"%{q}%"
+        query = query.filter(or_(
+            Section.course_name.ilike(term),
+            Section.instructor.ilike(term),
+            Section.section_code.ilike(term),
+            Section.course_number.ilike(term),
+            Section.subject.ilike(term),
+            cast(Section.class_number, String).ilike(term),
+        ))
+    return query
+
+
+def _group_into_courses(sections) -> list[dict]:
+    courses: dict[tuple, dict] = {}
+    for s in sections:
+        key = (s.subject, s.course_number)
+        if key not in courses:
+            courses[key] = {
+                "subject": s.subject,
+                "course_number": s.course_number,
+                "course_name": s.course_name,
+                "sections": [],
+            }
+        courses[key]["sections"].append(s)
+    return list(courses.values())
+
+
+def _subject_list(db: Session) -> list[tuple[str, str]]:
+    rows = (
+        db.query(Section.subject, Section.course_name)
+        .distinct(Section.subject)
+        .order_by(Section.subject)
+        .all()
+    )
+    # Return (code, label) — use the subject code as label since names vary per course
+    return [(row[0], row[0]) for row in rows]
+
+
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request, db: Session = Depends(get_session)):
+async def index(
+    request: Request,
+    q: str = "",
+    subject: str = "",
+    status: str = "",
+    mode: str = "",
+    days: list[str] = [],
+    db: Session = Depends(get_session),
+):
     student = _current_student(request, db)
     watching = _watched_classes(student)
 
-    sections = db.query(Section).order_by(Section.course_number, Section.section_code).all()
-
-    courses: dict[str, dict] = {}
-    for s in sections:
-        key = s.course_number
-        if key not in courses:
-            courses[key] = {"course_number": s.course_number, "course_name": s.course_name, "sections": []}
-        courses[key]["sections"].append(s)
+    base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
+    sections = _apply_filters(base_query, q, subject, status, mode, days).all()
 
     last_run = (
         db.query(ScrapeRun)
-        .filter(ScrapeRun.status == "ok")
+        .filter(ScrapeRun.status.in_(["ok", "partial"]))
         .order_by(ScrapeRun.finished_at.desc())
         .first()
     )
 
     return templates.TemplateResponse(request, "index.html", {
-        "courses": list(courses.values()),
+        "courses": _group_into_courses(sections),
+        "section_count": len(sections),
+        "subject_list": _subject_list(db),
+        "days_options": DAYS,
+        "mode_options": MODES,
+        "q": q,
+        "selected_subject": subject,
+        "selected_status": status,
+        "selected_mode": mode,
+        "selected_days": days,
         "watching": watching,
         "student": student,
         "last_run": last_run,
@@ -58,17 +135,24 @@ async def index(request: Request, db: Session = Depends(get_session)):
 
 
 @router.get("/sections/partial", response_class=HTMLResponse)
-async def sections_partial(request: Request, course: str = "", db: Session = Depends(get_session)):
+async def sections_partial(
+    request: Request,
+    q: str = "",
+    subject: str = "",
+    status: str = "",
+    mode: str = "",
+    days: list[str] = [],
+    db: Session = Depends(get_session),
+):
     student = _current_student(request, db)
     watching = _watched_classes(student)
 
-    query = db.query(Section).order_by(Section.course_number, Section.section_code)
-    if course:
-        query = query.filter(Section.course_number == course)
-    sections = query.all()
+    base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
+    sections = _apply_filters(base_query, q, subject, status, mode, days).all()
 
-    return templates.TemplateResponse(request, "partials/section_rows.html", {
-        "sections": sections,
+    return templates.TemplateResponse(request, "partials/courses.html", {
+        "courses": _group_into_courses(sections),
+        "section_count": len(sections),
         "watching": watching,
         "student": student,
     })

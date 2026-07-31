@@ -1,59 +1,121 @@
 {% extends "base.html" %}
-{% block title %}CMIS Sections — CUNY Course Scouter{% endblock %}
+{% block title %}Browse Classes — CUNY Course Scouter{% endblock %}
 
 {% block content %}
-<p class="meta">
-  Baruch College · CIS Dept · Fall 2026
-  {% if last_run %}
-  · Last updated {{ last_run.finished_at.strftime('%b %d %I:%M %p') }} UTC
-  {% endif %}
-</p>
 
-{% if not student %}
-<p class="meta" style="margin-bottom:1.25rem;">
-  <a href="/auth/discord" class="btn btn-discord">Login with Discord</a>
-  to watch sections and get notified when they open.
-</p>
-{% endif %}
+<form id="filter-form">
 
-{% for course in courses %}
-<div class="course-block">
-  <div class="course-header">CIS {{ course.course_number }} — {{ course.course_name }}</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Class #</th>
-        <th>Section</th>
-        <th>Days &amp; Times</th>
-        <th>Instructor</th>
-        <th>Mode</th>
-        <th>Dates</th>
-        <th>Status</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for section in course.sections %}
-      <tr>
-        <td>{{ section.class_number }}</td>
-        <td>{{ section.section_code }}</td>
-        <td>{{ section.days_times or '—' }}</td>
-        <td>{{ section.instructor or 'TBA' }}</td>
-        <td>{{ section.instruction_mode or '—' }}</td>
-        <td>{{ section.meeting_dates or '—' }}</td>
-        <td>
-          <span class="badge badge-{{ section.status }}">
-            {{ section.status | title }}
-          </span>
-        </td>
-        <td id="watch-btn-{{ section.class_number }}">
-          {% set is_watching = section.class_number in watching %}
-          {% include "partials/watch_button.html" with context %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <!-- Search bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon">&#128269;</span>
+      <input
+        class="search-input"
+        type="search"
+        name="q"
+        value="{{ q }}"
+        placeholder="Search by course name, instructor, class code, number…"
+        autocomplete="off"
+        hx-get="/sections/partial"
+        hx-trigger="input changed delay:300ms, search"
+        hx-target="#sections-container"
+        hx-include="#filter-form"
+        hx-swap="innerHTML"
+        hx-indicator="#loading"
+      >
+    </div>
+
+    <div class="filter-row">
+      <!-- Department -->
+      <select
+        class="filter-select"
+        name="subject"
+        hx-get="/sections/partial"
+        hx-trigger="change"
+        hx-target="#sections-container"
+        hx-include="#filter-form"
+        hx-swap="innerHTML"
+      >
+        <option value="">All departments</option>
+        {% for code, label in subject_list %}
+        <option value="{{ code }}" {% if code == selected_subject %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <!-- Status -->
+      <select
+        class="filter-select"
+        name="status"
+        hx-get="/sections/partial"
+        hx-trigger="change"
+        hx-target="#sections-container"
+        hx-include="#filter-form"
+        hx-swap="innerHTML"
+      >
+        <option value="">All statuses</option>
+        <option value="open"     {% if selected_status == 'open' %}selected{% endif %}>Open</option>
+        <option value="waitlist" {% if selected_status == 'waitlist' %}selected{% endif %}>Waitlist</option>
+        <option value="closed"   {% if selected_status == 'closed' %}selected{% endif %}>Closed</option>
+      </select>
+
+      <!-- Instruction mode -->
+      <select
+        class="filter-select"
+        name="mode"
+        hx-get="/sections/partial"
+        hx-trigger="change"
+        hx-target="#sections-container"
+        hx-include="#filter-form"
+        hx-swap="innerHTML"
+      >
+        <option value="">All modes</option>
+        {% for value, label in mode_options %}
+        <option value="{{ value }}" {% if value == selected_mode %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <div class="filter-divider"></div>
+
+      <!-- Days of week -->
+      <div class="day-pills">
+        {% for value, label in days_options %}
+        <span class="day-pill">
+          <input
+            type="checkbox"
+            id="day-{{ value }}"
+            name="days"
+            value="{{ value }}"
+            {% if value in selected_days %}checked{% endif %}
+            hx-get="/sections/partial"
+            hx-trigger="change"
+            hx-target="#sections-container"
+            hx-include="#filter-form"
+            hx-swap="innerHTML"
+          >
+          <label for="day-{{ value }}">{{ label }}</label>
+        </span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+</form>
+
+<!-- Loading indicator + result count -->
+<div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
+  <div class="result-meta" id="result-meta">
+    {% if section_count == 0 %}
+      No sections found
+    {% else %}
+      {{ section_count }} section{{ 's' if section_count != 1 else '' }} across {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
+      {%- if last_run %} &mdash; updated {{ last_run.finished_at.strftime('%b %d, %I:%M %p') }} UTC{% endif %}
+    {% endif %}
+  </div>
+  <span id="loading" class="htmx-indicator" style="font-size:0.8rem;color:#888;">Loading…</span>
 </div>
-{% endfor %}
+
+<div id="sections-container">
+  {% include "partials/courses.html" with context %}
+</div>
+
 {% endblock %}

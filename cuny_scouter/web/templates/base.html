@@ -73,6 +73,84 @@
 
     .htmx-indicator { opacity: 0; transition: opacity 0.2s; }
     .htmx-request .htmx-indicator { opacity: 1; }
+
+    /* Filter bar */
+    .filter-bar {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .search-wrap { position: relative; margin-bottom: 0.75rem; }
+    .search-input {
+      width: 100%;
+      padding: 0.6rem 1rem 0.6rem 2.5rem;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 1rem;
+      background: #fafafa;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { outline: none; border-color: #5865F2; background: #fff; }
+    .search-icon {
+      position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%);
+      color: #aaa; font-size: 1rem; pointer-events: none;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+    }
+
+    .filter-select {
+      padding: 0.35rem 0.6rem;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: #fafafa;
+      cursor: pointer;
+      min-width: 130px;
+    }
+    .filter-select:focus { outline: none; border-color: #5865F2; }
+
+    .day-pills { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+    .day-pill { position: relative; }
+    .day-pill input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
+    .day-pill label {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+      background: #fafafa;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .day-pill input:checked + label {
+      background: #1a1a2e;
+      border-color: #1a1a2e;
+      color: #fff;
+    }
+
+    .filter-divider { width: 1px; height: 24px; background: #e0e0e0; flex-shrink: 0; }
+
+    .result-meta {
+      font-size: 0.82rem;
+      color: #777;
+      margin-bottom: 0.75rem;
+      min-height: 1.2em;
+    }
+
+    @media (max-width: 640px) {
+      .filter-row { gap: 0.5rem; }
+      .filter-select { min-width: 0; flex: 1; }
+    }
   </style>
 </head>
 <body>
