@@ -56,19 +56,25 @@ def _parse_status(td) -> str:
     raise ParseError(f"Unrecognised status img src: {src!r}")
 
 
-def _parse_course_header(testing_msg_div) -> tuple[str, str]:
-    """Return (course_number, course_name) from a div.testing_msg text."""
+def _parse_course_header(testing_msg_div) -> tuple[str, str, str]:
+    """Return (subject, course_number, course_name) from a div.testing_msg text."""
     # Normalise non-breaking spaces (\xa0) to regular spaces before splitting
     text = testing_msg_div.get_text(separator=" ", strip=True).replace("\xa0", " ")
-    # Format: "CIS 2200 - Intro Info Systems"
+    # Format: "BUS 2000 - Business Fundamentals" or "CIS 2200 - Intro Info Systems"
     if " - " in text:
         left, course_name = text.split(" - ", 1)
         parts = left.strip().split()
-        course_number = parts[-1] if len(parts) >= 2 else left.strip()
+        if len(parts) >= 2:
+            subject = parts[0]
+            course_number = parts[1]
+        else:
+            subject = ""
+            course_number = left.strip()
     else:
+        subject = ""
         course_number = ""
         course_name = text.strip()
-    return course_number, course_name
+    return subject, course_number, course_name
 
 
 def parse_sections(
@@ -94,9 +100,14 @@ def parse_sections(
 
     for table in soup.find_all("table", class_="classinfo"):
         course_header = table.find_previous("div", class_="testing_msg")
-        course_number, course_name = (
-            _parse_course_header(course_header) if course_header else ("", "")
-        )
+        if course_header:
+            parsed_subject, course_number, course_name = _parse_course_header(course_header)
+            # Use the subject code from the header (e.g. "BUS") rather than
+            # the POST key (e.g. "BUAD") — they often differ.
+            effective_subject = parsed_subject or subject
+        else:
+            course_number, course_name = "", ""
+            effective_subject = subject
 
         for class_td in table.find_all("td", attrs={"data-label": "Class"}):
             row: dict[str, str] = {}
@@ -116,7 +127,7 @@ def parse_sections(
                         class_number=int(row["Class"]),
                         term_code=term_code,
                         institution=institution,
-                        subject=subject,
+                        subject=effective_subject,
                         course_number=course_number,
                         course_name=course_name,
                         section_code=row.get("Section", ""),

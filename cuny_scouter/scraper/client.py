@@ -12,6 +12,10 @@ class ScraperError(Exception):
     pass
 
 
+class ScraperNoResultsError(ScraperError):
+    pass
+
+
 def _step0_and_step1(session: requests.Session) -> None:
     """Seed JSESSIONID and POST institution + term. Mutates session in place."""
     headers = {"User-Agent": settings.scraper_user_agent}
@@ -87,7 +91,13 @@ def fetch_subjects() -> list[tuple[str, str]]:
     return subjects
 
 
-def fetch_subject_html(subject_code: str, subject_name: str) -> str:
+CAREER_LABELS = {
+    "UGRD": "Undergraduate",
+    "GRAD": "Graduate",
+}
+
+
+def fetch_subject_html(subject_code: str, subject_name: str, career: str = "UGRD") -> str:
     """
     Execute the three-step session flow for a specific subject and return the
     raw HTML response decoded as ISO-8859-1.
@@ -103,8 +113,8 @@ def fetch_subject_html(subject_code: str, subject_name: str) -> str:
         data={
             "selectedSubjectName": subject_name,
             "subject_name": subject_code,
-            "selectedCCareerName": "Undergraduate",
-            "courseCareer": "UGRD",
+            "selectedCCareerName": CAREER_LABELS.get(career, career),
+            "courseCareer": career,
             "selectedCAttrName": "",
             "courseAttr": "",
             "selectedCAttrVName": "",
@@ -136,7 +146,13 @@ def fetch_subject_html(subject_code: str, subject_name: str) -> str:
         raise ScraperError(f"Search POST returned HTTP {resp.status_code}")
 
     resp.encoding = "ISO-8859-1"
-    return resp.text
+    html = resp.text
+
+    # CUNY returns 200 + criteria page when the search yields nothing
+    if "The search returns no results" in html or "classfound_msg" not in html:
+        raise ScraperNoResultsError(f"{subject_code} ({career}): no sections found")
+
+    return html
 
 
 def fetch_all_subjects(
@@ -147,16 +163,24 @@ def fetch_all_subjects(
     Returns [(subject_code, subject_name), html] pairs.
     Sleeps delay_seconds between requests to avoid hammering the server.
     """
+    import logging
+    log = logging.getLogger(__name__)
+
     subjects = fetch_subjects()
     results = []
     for i, (code, name) in enumerate(subjects):
         if i > 0:
             time.sleep(delay_seconds)
-        try:
-            html = fetch_subject_html(code, name)
-            results.append(((code, name), html))
-        except ScraperError as exc:
-            # Log and continue — one bad subject shouldn't abort the whole run
-            import logging
-            logging.getLogger(__name__).warning(f"Failed to fetch {code}: {exc}")
+
+        for career in ("UGRD", "GRAD"):
+            if career == "GRAD":
+                time.sleep(delay_seconds)
+            try:
+                html = fetch_subject_html(code, name, career=career)
+                results.append(((code, name), html))
+            except ScraperNoResultsError:
+                pass  # No sections for this career level — normal for most subjects
+            except ScraperError as exc:
+                log.warning(f"  {code} ({career}): failed to fetch — {exc}")
+
     return results

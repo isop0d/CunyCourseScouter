@@ -78,7 +78,7 @@ class TestAllSectionsFixture:
         for r in records:
             assert r.term_code == "1269"
             assert r.institution == "BAR01"
-            assert r.subject == "CMIS"
+            assert r.subject == "CIS"
 
     def test_open_only_fixture_has_fewer_sections(self, all_sections_html, open_only_html):
         """Confirms Risk 1 finding: open_class='O' hides waitlisted sections."""
