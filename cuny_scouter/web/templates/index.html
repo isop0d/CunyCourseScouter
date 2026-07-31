@@ -108,7 +108,7 @@
       No sections found
     {% else %}
       {{ section_count }} section{{ 's' if section_count != 1 else '' }} across {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
-      {%- if last_run %} &mdash; updated {{ last_run.finished_at.strftime('%b %d, %I:%M %p') }} UTC{% endif %}
+      {%- if last_run %} &mdash; updated {{ (last_run.finished_at | to_et).strftime('%b %d, %I:%M %p') }} ET{% endif %}
     {% endif %}
   </div>
   <span id="loading" class="htmx-indicator" style="font-size:0.8rem;color:#888;">Loading…</span>

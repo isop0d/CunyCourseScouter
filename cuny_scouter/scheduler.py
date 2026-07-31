@@ -56,6 +56,9 @@ def _upsert_subject(db, run: ScrapeRun, subject_code: str, html: str) -> list:
         ).on_conflict_do_update(
             index_elements=["class_number"],
             set_={
+                "subject": record.subject,
+                "course_number": record.course_number,
+                "course_name": record.course_name,
                 "status": record.status,
                 "section_code": record.section_code,
                 "days_times": record.days_times,

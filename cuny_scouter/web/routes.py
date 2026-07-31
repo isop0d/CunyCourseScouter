@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,7 +11,17 @@ from cuny_scouter.db.models import Section, ScrapeRun, Student, Watch
 from cuny_scouter.db.session import get_session
 from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user
 
+_ET = ZoneInfo("America/New_York")
+
 templates = Jinja2Templates(directory="cuny_scouter/web/templates")
+def _to_et(dt):
+    if not dt:
+        return dt
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_ET)
+
+templates.env.filters["to_et"] = _to_et
 router = APIRouter()
 
 
