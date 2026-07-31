@@ -1,4 +1,7 @@
+import time
+
 import requests
+from bs4 import BeautifulSoup
 
 from cuny_scouter.config import settings
 
@@ -9,25 +12,14 @@ class ScraperError(Exception):
     pass
 
 
-def fetch_subject_html() -> str:
-    """
-    Execute the three-step session flow against CUNY Global Search and return
-    the raw HTML response for the configured subject/term/institution.
-
-    Step 0: GET search.jsp — seeds the JSESSIONID session cookie.
-    Step 1: POST institution + term selection.
-    Step 2: POST subject-level search filters.
-
-    open_class is intentionally left blank so closed and waitlisted sections
-    are included — sending "O" hides all non-open sections.
-    """
+def _step0_and_step1(session: requests.Session) -> None:
+    """Seed JSESSIONID and POST institution + term. Mutates session in place."""
     headers = {"User-Agent": settings.scraper_user_agent}
-    session = requests.Session()
 
     session.get(f"{BASE}/search.jsp", headers=headers, timeout=30)
 
     if "JSESSIONID" not in session.cookies:
-        raise ScraperError("No JSESSIONID cookie after initial GET — server may be down.")
+        raise ScraperError("No JSESSIONID after initial GET — server may be down.")
 
     session.post(
         f"{BASE}/CFSearchToolController",
@@ -42,13 +34,75 @@ def fetch_subject_html() -> str:
         },
     )
 
+
+def fetch_subjects() -> list[tuple[str, str]]:
+    """
+    Return all available subjects for the configured institution and term as
+    [(subject_code, subject_name), ...], e.g. [("ACCT", "Accounting"), ...].
+    """
+    headers = {"User-Agent": settings.scraper_user_agent}
+    session = requests.Session()
+    _step0_and_step1(session)
+
+    # After Step 1 the server returns a page with the subject dropdown
+    resp = session.get(
+        f"{BASE}/CFSearchToolController",
+        headers=headers,
+        timeout=30,
+    )
+    resp.encoding = "ISO-8859-1"
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+    select = soup.find("select", {"name": "subject_name"})
+
+    if not select:
+        # Step 1 POST itself returns the subject page — use that response
+        # Re-do with POST and capture the response
+        resp2 = session.post(
+            f"{BASE}/CFSearchToolController",
+            headers=headers,
+            timeout=30,
+            data={
+                "selectedInstName": settings.institution_name,
+                "inst_selection": settings.institution,
+                "selectedTermName": settings.term_name,
+                "term_value": settings.term_code,
+                "next_btn": "Next",
+            },
+        )
+        resp2.encoding = "ISO-8859-1"
+        soup = BeautifulSoup(resp2.text, "html.parser")
+        select = soup.find("select", {"name": "subject_name"})
+
+    if not select:
+        raise ScraperError("Could not find subject dropdown in Step 1 response.")
+
+    subjects = []
+    for option in select.find_all("option"):
+        code = option.get("value", "").strip()
+        name = option.get_text(strip=True)
+        if code:  # skip the blank "all" option
+            subjects.append((code, name))
+
+    return subjects
+
+
+def fetch_subject_html(subject_code: str, subject_name: str) -> str:
+    """
+    Execute the three-step session flow for a specific subject and return the
+    raw HTML response decoded as ISO-8859-1.
+    """
+    headers = {"User-Agent": settings.scraper_user_agent}
+    session = requests.Session()
+    _step0_and_step1(session)
+
     resp = session.post(
         f"{BASE}/CFSearchToolController",
         headers=headers,
         timeout=30,
         data={
-            "selectedSubjectName": settings.subject_name,
-            "subject_name": settings.subject,
+            "selectedSubjectName": subject_name,
+            "subject_name": subject_code,
             "selectedCCareerName": "Undergraduate",
             "courseCareer": "UGRD",
             "selectedCAttrName": "",
@@ -83,3 +137,26 @@ def fetch_subject_html() -> str:
 
     resp.encoding = "ISO-8859-1"
     return resp.text
+
+
+def fetch_all_subjects(
+    delay_seconds: float = 1.5,
+) -> list[tuple[tuple[str, str], str]]:
+    """
+    Fetch HTML for every subject available at the configured institution/term.
+    Returns [(subject_code, subject_name), html] pairs.
+    Sleeps delay_seconds between requests to avoid hammering the server.
+    """
+    subjects = fetch_subjects()
+    results = []
+    for i, (code, name) in enumerate(subjects):
+        if i > 0:
+            time.sleep(delay_seconds)
+        try:
+            html = fetch_subject_html(code, name)
+            results.append(((code, name), html))
+        except ScraperError as exc:
+            # Log and continue — one bad subject shouldn't abort the whole run
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to fetch {code}: {exc}")
+    return results
