@@ -1,4 +1,4 @@
-{% if watching %}
+{% if is_watching %}
 <button class="btn btn-unwatch btn-sm"
         hx-delete="/watch/{{ section.class_number }}"
         hx-target="this"

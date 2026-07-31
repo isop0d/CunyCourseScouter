@@ -184,7 +184,7 @@ async def add_watch(class_number: int, request: Request, db: Session = Depends(g
 
     return templates.TemplateResponse(request, "partials/watch_button.html", {
         "section": section,
-        "watching": True,
+        "is_watching": True,
         "student": student,
     })
 
@@ -209,7 +209,7 @@ async def remove_watch(class_number: int, request: Request, db: Session = Depend
 
     return templates.TemplateResponse(request, "partials/watch_button.html", {
         "section": section,
-        "watching": False,
+        "is_watching": False,
         "student": student,
     })
 
