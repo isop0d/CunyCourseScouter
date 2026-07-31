@@ -12,6 +12,8 @@ from sqlalchemy.dialects.postgresql import insert
 from cuny_scouter.config import settings
 from cuny_scouter.db.models import Section, ScrapeRun, SectionSnapshot
 from cuny_scouter.db.session import get_session
+from cuny_scouter.diff import compute_diff
+from cuny_scouter.notifier import dispatch_notifications
 from cuny_scouter.scraper.client import fetch_subject_html
 from cuny_scouter.scraper.parser import parse_sections, StructuralValidationError
 
@@ -103,6 +105,29 @@ def poll_once() -> None:
         run.status = "ok"
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
+
+        # Fetch previous successful run's snapshots for diffing
+        prev_run = (
+            db.query(ScrapeRun)
+            .filter(ScrapeRun.status == "ok", ScrapeRun.id != run.id)
+            .order_by(ScrapeRun.finished_at.desc())
+            .first()
+        )
+        if prev_run:
+            prev_snapshots = [
+                (s.class_number, s.status)
+                for s in db.query(SectionSnapshot)
+                .filter(SectionSnapshot.run_id == prev_run.id)
+                .all()
+            ]
+            events = compute_diff(records, prev_snapshots, run.id)
+            if events:
+                log.info(f"Detected {len(events)} status change(s).")
+                sent = dispatch_notifications(db, events, settings.discord_webhook_url)
+                log.info(f"Sent {sent} notification(s).")
+            else:
+                log.info("No status changes detected.")
+
         log.info(f"Poll complete. Run id={run.id}, sections={len(records)}.")
 
     except StructuralValidationError as exc:
