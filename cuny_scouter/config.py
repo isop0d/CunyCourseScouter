@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     discord_ops_webhook_url: str = ""
     secret_key: str = "change-me-in-production"
 
+    # Discord OAuth
+    discord_client_id: str = ""
+    discord_client_secret: str = ""
+    discord_redirect_uri: str = "http://localhost:8000/auth/discord/callback"
+
     # Scraper
     poll_interval_seconds: int = 600
     institution: str = "BAR01"

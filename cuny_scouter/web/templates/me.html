@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}My Watches — CUNY Course Scouter{% endblock %}
+
+{% block content %}
+<h2 style="margin-bottom:1rem;">Watching as {{ student.discord_username }}</h2>
+
+{% if watches %}
+<div class="course-block">
+  <table>
+    <thead>
+      <tr>
+        <th>Class #</th>
+        <th>Course</th>
+        <th>Section</th>
+        <th>Instructor</th>
+        <th>Status</th>
+        <th>Notify on</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for watch in watches %}
+      {% set section = sections.get(watch.class_number) %}
+      <tr>
+        <td>{{ watch.class_number }}</td>
+        <td>{% if section %}CIS {{ section.course_number }} — {{ section.course_name }}{% else %}—{% endif %}</td>
+        <td>{% if section %}{{ section.section_code }}{% else %}—{% endif %}</td>
+        <td>{% if section %}{{ section.instructor or 'TBA' }}{% else %}—{% endif %}</td>
+        <td>
+          {% if section %}
+          <span class="badge badge-{{ section.status }}">{{ section.status | title }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>{{ watch.notify_on | title }}</td>
+        <td id="watch-btn-{{ watch.class_number }}">
+          {% set is_watching = True %}
+          {% set section = sections.get(watch.class_number) %}
+          {% include "partials/watch_button.html" with context %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="meta">You're not watching any sections yet. <a href="/">Browse sections</a></p>
+{% endif %}
+{% endblock %}
