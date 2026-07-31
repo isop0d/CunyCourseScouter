@@ -40,11 +40,6 @@ def _watched_classes(student: Student | None) -> set[int]:
 
 # ── Section browser ──────────────────────────────────────────────────────────
 
-DAYS = [
-    ("Mo", "Mon"), ("Tu", "Tue"), ("We", "Wed"),
-    ("Th", "Thu"), ("Fr", "Fri"), ("Sa", "Sat"),
-]
-
 MODES = [
     ("In Person", "In Person"),
     ("Online Synchronous", "Online Sync"),
@@ -56,16 +51,13 @@ MODES = [
 ]
 
 
-def _apply_filters(query, q: str, subject: str, status: str, mode: str, days: list[str]):
+def _apply_filters(query, q: str, subject: str, status: str, mode: str):
     if subject:
         query = query.filter(Section.subject == subject)
     if status:
         query = query.filter(Section.status == status)
     if mode:
         query = query.filter(Section.instruction_mode == mode)
-    if days:
-        for day in days:
-            query = query.filter(Section.days_times.ilike(f"%{day}%"))
     if q:
         term = f"%{q}%"
         query = query.filter(or_(
@@ -112,14 +104,13 @@ async def index(
     subject: str = "",
     status: str = "",
     mode: str = "",
-    days: list[str] = [],
     db: Session = Depends(get_session),
 ):
     student = _current_student(request, db)
     watching = _watched_classes(student)
 
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    sections = _apply_filters(base_query, q, subject, status, mode, days).all()
+    sections = _apply_filters(base_query, q, subject, status, mode).all()
 
     last_run = (
         db.query(ScrapeRun)
@@ -132,13 +123,11 @@ async def index(
         "courses": _group_into_courses(sections),
         "section_count": len(sections),
         "subject_list": _subject_list(db),
-        "days_options": DAYS,
         "mode_options": MODES,
         "q": q,
         "selected_subject": subject,
         "selected_status": status,
         "selected_mode": mode,
-        "selected_days": days,
         "watching": watching,
         "student": student,
         "last_run": last_run,
@@ -152,14 +141,13 @@ async def sections_partial(
     subject: str = "",
     status: str = "",
     mode: str = "",
-    days: list[str] = [],
     db: Session = Depends(get_session),
 ):
     student = _current_student(request, db)
     watching = _watched_classes(student)
 
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    sections = _apply_filters(base_query, q, subject, status, mode, days).all()
+    sections = _apply_filters(base_query, q, subject, status, mode).all()
 
     return templates.TemplateResponse(request, "partials/courses.html", {
         "courses": _group_into_courses(sections),

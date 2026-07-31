@@ -117,30 +117,7 @@
     }
     .filter-select:focus { outline: none; border-color: #5865F2; }
 
-    .day-pills { display: flex; gap: 0.3rem; flex-wrap: wrap; }
-    .day-pill { position: relative; }
-    .day-pill input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; }
-    .day-pill label {
-      display: inline-block;
-      padding: 0.3rem 0.6rem;
-      border: 1.5px solid #ddd;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      user-select: none;
-      background: #fafafa;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
-    }
-    .day-pill input:checked + label {
-      background: #1a1a2e;
-      border-color: #1a1a2e;
-      color: #fff;
-    }
-
-    .filter-divider { width: 1px; height: 24px; background: #e0e0e0; flex-shrink: 0; }
-
-    .result-meta {
+.result-meta {
       font-size: 0.82rem;
       color: #777;
       margin-bottom: 0.75rem;

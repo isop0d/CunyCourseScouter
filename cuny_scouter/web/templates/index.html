@@ -74,28 +74,6 @@
         {% endfor %}
       </select>
 
-      <div class="filter-divider"></div>
-
-      <!-- Days of week -->
-      <div class="day-pills">
-        {% for value, label in days_options %}
-        <span class="day-pill">
-          <input
-            type="checkbox"
-            id="day-{{ value }}"
-            name="days"
-            value="{{ value }}"
-            {% if value in selected_days %}checked{% endif %}
-            hx-get="/sections/partial"
-            hx-trigger="change"
-            hx-target="#sections-container"
-            hx-include="#filter-form"
-            hx-swap="innerHTML"
-          >
-          <label for="day-{{ value }}">{{ label }}</label>
-        </span>
-        {% endfor %}
-      </div>
     </div>
   </div>
 
