@@ -127,19 +127,29 @@ def _fetch_and_upsert_key(db, run: ScrapeRun, fetch_key: str, fetch_name: str, d
     return all_records, had_error
 
 
-def _get_watched_class_numbers(db) -> list[tuple[int, str]]:
-    """Return [(class_number, current_status), ...] for all actively watched sections."""
+def _get_watched_classes(db) -> dict[str, list[tuple[int, str]]]:
+    """
+    Return {fetch_key: [(class_number, current_status), ...]} for all active watches.
+    Groups watched classes by subject so we make one HTTP request per subject.
+    """
     rows = db.execute(text(
-        "SELECT w.class_number, s.status "
+        "SELECT s.fetch_key, w.class_number, s.status "
         "FROM watches w "
         "JOIN sections s ON s.class_number = w.class_number "
-        "WHERE w.active = TRUE"
+        "WHERE w.active = TRUE AND s.fetch_key IS NOT NULL"
     )).fetchall()
-    return [(row[0], row[1]) for row in rows]
+
+    grouped: dict[str, list[tuple[int, str]]] = {}
+    for fetch_key, class_number, status in rows:
+        grouped.setdefault(fetch_key, []).append((class_number, status))
+    return grouped
 
 
-def _run_fast_poll(watched: list[tuple[int, str]]) -> None:
-    """Fetch each watched class individually, upsert status, diff, notify."""
+def _run_fast_poll(grouped: dict[str, list[tuple[int, str]]]) -> None:
+    """
+    Fetch each watched subject once, but only diff/notify the specific watched classes.
+    One HTTP request per unique subject with active watches.
+    """
     db = get_session()
     run = ScrapeRun(
         institution=settings.institution,
@@ -152,32 +162,42 @@ def _run_fast_poll(watched: list[tuple[int, str]]) -> None:
     db.refresh(run)
 
     all_records = []
+    prev_snapshots = []
     failed = []
     now = datetime.now(timezone.utc)
 
-    for i, (class_number, _) in enumerate(watched):
+    all_subjects = fetch_subjects()
+    name_map = {code: name for code, name in all_subjects}
+
+    for i, (fetch_key, class_watches) in enumerate(grouped.items()):
         if i > 0:
             time.sleep(1.0)
-        try:
-            html = fetch_class_html(class_number)
-            records = parse_sections(html, term_code=settings.term_code, institution=settings.institution, subject="")
-            for r in records:
-                if r.class_number == class_number:
-                    db.execute(text(
-                        "UPDATE sections SET status=:s, updated_at=:t, last_seen_run=:r WHERE class_number=:cn"
-                    ), {"s": r.status, "t": now, "r": run.id, "cn": class_number})
-                    db.execute(text(
-                        "INSERT INTO section_snapshots (run_id, class_number, status, scraped_at) "
-                        "VALUES (:r, :cn, :s, :t)"
-                    ), {"r": run.id, "cn": class_number, "s": r.status, "t": now})
-                    all_records.append(r)
-                    log.info(f"  Class {class_number}: {r.status}")
-        except ScraperNoResultsError:
-            log.warning(f"  Class {class_number}: not found on CUNY search")
-        except Exception as exc:
-            db.rollback()
-            log.warning(f"  Class {class_number}: failed — {exc}")
-            failed.append(class_number)
+
+        watched_numbers = {cn for cn, _ in class_watches}
+        prev_snapshots.extend(class_watches)
+
+        for career in ("UGRD", "GRAD"):
+            try:
+                html = fetch_subject_html(fetch_key, name_map.get(fetch_key, fetch_key), career=career)
+                records = parse_sections(html, term_code=settings.term_code, institution=settings.institution, subject=fetch_key)
+                for r in records:
+                    if r.class_number in watched_numbers:
+                        db.execute(text(
+                            "UPDATE sections SET status=:s, updated_at=:t, last_seen_run=:r WHERE class_number=:cn"
+                        ), {"s": r.status, "t": now, "r": run.id, "cn": r.class_number})
+                        db.execute(text(
+                            "INSERT INTO section_snapshots (run_id, class_number, status, scraped_at) "
+                            "VALUES (:r, :cn, :s, :t)"
+                        ), {"r": run.id, "cn": r.class_number, "s": r.status, "t": now})
+                        all_records.append(r)
+                        log.info(f"  Class {r.class_number} ({fetch_key}/{career}): {r.status}")
+            except ScraperNoResultsError:
+                pass
+            except Exception as exc:
+                db.rollback()
+                log.warning(f"  {fetch_key} ({career}): failed — {exc}")
+                failed.append(fetch_key)
+            time.sleep(1.0)
 
     db.commit()
     run.sections_found = len(all_records)
@@ -185,9 +205,8 @@ def _run_fast_poll(watched: list[tuple[int, str]]) -> None:
     run.finished_at = now
     db.commit()
 
-    log.info(f"FAST poll complete. classes={len(watched)}, checked={len(all_records)}, failed={len(failed)}")
+    log.info(f"FAST poll complete. subjects={len(grouped)}, classes checked={len(all_records)}, failed={len(failed)}")
 
-    prev_snapshots = list(watched)
     if all_records:
         events = compute_diff(all_records, prev_snapshots, run.id)
         if events:
@@ -270,19 +289,20 @@ def _run_poll(label: str, subject_pairs: list[tuple[str, str]], delay: float = 1
 
 
 def poll_fast() -> bool:
-    """Poll only the specific watched classes. Returns False if nothing to watch."""
+    """Poll only subjects with active watches, diffing only watched classes. Returns False if nothing to watch."""
     db = get_session()
     try:
-        watched = _get_watched_class_numbers(db)
+        grouped = _get_watched_classes(db)
     finally:
         db.close()
 
-    if not watched:
+    if not grouped:
         log.info("Fast poll: no active watches, skipping.")
         return False
 
-    log.info(f"Fast poll: {len(watched)} class(es) — {[cn for cn, _ in watched]}")
-    _run_fast_poll(watched)
+    total_classes = sum(len(v) for v in grouped.values())
+    log.info(f"Fast poll: {len(grouped)} subject(s), {total_classes} class(es) — {list(grouped.keys())}")
+    _run_fast_poll(grouped)
     return True
 
 
