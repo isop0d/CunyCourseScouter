@@ -7,18 +7,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from sqlalchemy import func, text as sa_text
-from cuny_scouter.db.models import Notification, Section, ScrapeRun, Student, Watch
+from cuny_scouter.db.models import Section, ScrapeRun, Student, Watch
 from cuny_scouter.db.session import get_session
 from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user, join_guild
 
 _ET = ZoneInfo("America/New_York")
 
-from cuny_scouter.config import settings as _settings
-
 templates = Jinja2Templates(directory="cuny_scouter/web/templates")
-templates.env.globals["umami_site_id"] = _settings.umami_site_id
-templates.env.globals["umami_script_url"] = _settings.umami_script_url
 
 def _to_et(dt):
     if not dt:
