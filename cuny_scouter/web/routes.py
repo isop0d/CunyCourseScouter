@@ -7,13 +7,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from cuny_scouter.db.models import Section, ScrapeRun, Student, Watch
+from sqlalchemy import func, text as sa_text
+from cuny_scouter.db.models import Notification, Section, ScrapeRun, Student, Watch
 from cuny_scouter.db.session import get_session
 from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user, join_guild
 
 _ET = ZoneInfo("America/New_York")
 
+from cuny_scouter.config import settings as _settings
+
 templates = Jinja2Templates(directory="cuny_scouter/web/templates")
+templates.env.globals["config"] = _settings
+
 def _to_et(dt):
     if not dt:
         return dt
@@ -271,6 +276,52 @@ async def auth_discord_callback(code: str, request: Request, db: Session = Depen
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/")
+
+
+# ── Admin ─────────────────────────────────────────────────────────────────────
+
+@router.get("/admin")
+async def admin(request: Request, db: Session = Depends(get_session)):
+    student = _current_student(request, db)
+    if not student or student.discord_id != request.app.state.settings.admin_discord_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    total_students = db.query(func.count(Student.id)).scalar()
+    total_watches = db.query(func.count(Watch.id)).filter(Watch.active == True).scalar()
+    total_notifications = db.query(func.count(Notification.id)).scalar()
+    total_sections = db.query(func.count(Section.class_number)).scalar()
+
+    signups_by_day = db.execute(sa_text(
+        "SELECT DATE(created_at) as day, COUNT(*) as cnt "
+        "FROM students GROUP BY day ORDER BY day DESC LIMIT 30"
+    )).fetchall()
+
+    notifications_by_day = db.execute(sa_text(
+        "SELECT DATE(sent_at) as day, COUNT(*) as cnt "
+        "FROM notifications GROUP BY day ORDER BY day DESC LIMIT 30"
+    )).fetchall()
+
+    most_watched = db.execute(sa_text(
+        "SELECT s.course_name, s.subject, s.course_number, w.class_number, COUNT(*) as cnt "
+        "FROM watches w JOIN sections s ON s.class_number = w.class_number "
+        "GROUP BY w.class_number, s.course_name, s.subject, s.course_number "
+        "ORDER BY cnt DESC LIMIT 10"
+    )).fetchall()
+
+    last_run = db.query(ScrapeRun).order_by(ScrapeRun.finished_at.desc()).first()
+
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "student": student,
+        "total_students": total_students,
+        "total_watches": total_watches,
+        "total_notifications": total_notifications,
+        "total_sections": total_sections,
+        "signups_by_day": signups_by_day,
+        "notifications_by_day": notifications_by_day,
+        "most_watched": most_watched,
+        "last_run": last_run,
+    })
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

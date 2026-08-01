@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Admin — CUNY Course Scouter{% endblock %}
+{% block content %}
+<style>
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card { background: var(--bg-alt); border: 1px solid var(--border); padding: 1rem 1.25rem; }
+  .stat-card .num { font-size: 2rem; font-weight: 700; color: var(--border-strong); line-height: 1; }
+  .stat-card .label { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .admin-section { margin-bottom: 2rem; }
+  .admin-section h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin-bottom: 0.75rem; }
+  .day-row { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 0.2rem 0; border-bottom: 1px solid var(--border); }
+  .day-row:last-child { border-bottom: none; }
+  .day-row .cnt { font-weight: 600; color: var(--border-strong); }
+</style>
+
+<h1 style="font-size:1rem; font-weight:700; margin-bottom:1.5rem;">Admin Dashboard</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="num">{{ total_students }}</div>
+    <div class="label">Total Users</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ total_watches }}</div>
+    <div class="label">Active Watches</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ total_notifications }}</div>
+    <div class="label">Notifications Sent</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ total_sections }}</div>
+    <div class="label">Sections in DB</div>
+  </div>
+</div>
+
+{% if last_run %}
+<div class="admin-section">
+  <h2>Last Scrape Run</h2>
+  <div style="font-size:0.82rem; color:var(--text-muted);">
+    {{ (last_run.finished_at | to_et).strftime('%b %d, %I:%M %p') }} ET —
+    <span class="status-{{ 'open' if last_run.status == 'ok' else 'closed' }}">{{ last_run.status }}</span>
+    — {{ last_run.sections_found }} sections
+  </div>
+</div>
+{% endif %}
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:2rem;">
+  <div class="admin-section">
+    <h2>Signups by Day (last 30)</h2>
+    {% for row in signups_by_day %}
+    <div class="day-row">
+      <span>{{ row.day }}</span>
+      <span class="cnt">+{{ row.cnt }}</span>
+    </div>
+    {% else %}
+    <div style="color:var(--text-muted); font-size:0.82rem;">No signups yet.</div>
+    {% endfor %}
+  </div>
+
+  <div class="admin-section">
+    <h2>Notifications by Day (last 30)</h2>
+    {% for row in notifications_by_day %}
+    <div class="day-row">
+      <span>{{ row.day }}</span>
+      <span class="cnt">{{ row.cnt }}</span>
+    </div>
+    {% else %}
+    <div style="color:var(--text-muted); font-size:0.82rem;">No notifications yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="admin-section">
+  <h2>Most Watched Classes</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Class</th>
+        <th>Course</th>
+        <th>Watchers</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in most_watched %}
+      <tr>
+        <td>{{ row.subject }} {{ row.course_number }} <span style="color:var(--text-muted)">#{{ row.class_number }}</span></td>
+        <td>{{ row.course_name }}</td>
+        <td><strong>{{ row.cnt }}</strong></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" style="color:var(--text-muted);">No watches yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

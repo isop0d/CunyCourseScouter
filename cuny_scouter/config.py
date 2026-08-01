@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     discord_redirect_uri: str = "http://localhost:8000/auth/discord/callback"
     discord_bot_token: str = ""
     discord_guild_id: str = ""
+    admin_discord_id: str = ""
+    umami_site_id: str = ""
+    umami_script_url: str = "https://cloud.umami.is/script.js"
 
     # Scraper
     fast_poll_interval_seconds: int = 120
