@@ -283,7 +283,7 @@ async def logout(request: Request):
 @router.get("/admin")
 async def admin(request: Request, db: Session = Depends(get_session)):
     student = _current_student(request, db)
-    if not student or student.discord_id != request.app.state.settings.admin_discord_id:
+    if not student or student.discord_id != _settings.admin_discord_id:
         raise HTTPException(status_code=403, detail="Forbidden")
 
     total_students = db.query(func.count(Student.id)).scalar()
