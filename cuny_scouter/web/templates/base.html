@@ -147,17 +147,18 @@
     .htmx-indicator { display: none; }
     .htmx-request .htmx-indicator { display: inline; color: var(--text-muted); font-size: 0.8rem; }
 
-    /* ── Course blocks ── */
-    .course-block { margin-bottom: 1.75rem; }
-    .course-header {
+    /* ── Course groups (unified table, one tbody per course) ── */
+    .sections-table { margin-bottom: 1rem; }
+    .course-header-row td {
       font-weight: 600;
       font-size: 0.85rem;
-      padding: 0.4rem 0.5rem;
+      padding: 1.1rem 0.5rem 0.25rem;
       border-left: 3px solid var(--border-strong);
-      background: var(--bg-alt);
+      background: var(--bg-alt) !important;
       color: var(--text);
-      margin-bottom: 0;
+      border-bottom: 1px solid var(--border);
     }
+    .course-group:first-child .course-header-row td { padding-top: 0.4rem; }
 
     /* ── Table ── */
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
@@ -394,6 +395,21 @@
       }
       td[data-label=""] { justify-content: flex-end; }
       td[data-label=""]::before { display: none; }
+
+      /* Course header rows: flat label, not a card */
+      .course-header-row {
+        border: none;
+        border-radius: 0;
+        margin-bottom: 0;
+      }
+      .course-header-row td {
+        display: block;
+        border: none;
+        border-left: 3px solid var(--border-strong);
+        padding: 0.6rem 0.75rem 0.25rem;
+        background: var(--bg-alt) !important;
+      }
+      .course-header-row td::before { display: none; }
 
       .col-mode, .col-dates, .col-section, .col-rmp { display: none; }
     }

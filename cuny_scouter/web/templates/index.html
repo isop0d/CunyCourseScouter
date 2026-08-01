@@ -65,7 +65,7 @@
   {% if has_more %}
   <button class="btn btn-show-more"
           hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
-          hx-target="#sections-container"
+          hx-target="#results-table"
           hx-swap="beforeend">Show more</button>
   {% endif %}
 </div>
