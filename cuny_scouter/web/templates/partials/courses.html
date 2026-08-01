@@ -16,8 +16,8 @@
           <th>Class #</th>
           <th>Days &amp; Times</th>
           <th>Instructor</th>
-          <th>Mode</th>
-          <th>Dates</th>
+          <th class="col-mode">Mode</th>
+          <th class="col-dates">Dates</th>
           <th>Status</th>
           <th></th>
         </tr>
@@ -25,17 +25,17 @@
       <tbody>
         {% for section in course.sections %}
         <tr>
-          <td>{{ section.class_number }}</td>
-          <td>{{ section.days_times or '—' }}</td>
-          <td>{{ section.instructor or 'TBA' }}</td>
-          <td>{{ section.instruction_mode or '—' }}</td>
-          <td>{{ section.meeting_dates or '—' }}</td>
-          <td>
+          <td data-label="Class #">{{ section.class_number }}</td>
+          <td data-label="Days &amp; Times">{{ section.days_times or '—' }}</td>
+          <td data-label="Instructor">{{ section.instructor or 'TBA' }}</td>
+          <td data-label="Mode" class="col-mode">{{ section.instruction_mode or '—' }}</td>
+          <td data-label="Dates" class="col-dates">{{ section.meeting_dates or '—' }}</td>
+          <td data-label="Status">
             <span class="status-{{ section.status }}">
               {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
             </span>
           </td>
-          <td id="watch-btn-{{ section.class_number }}">
+          <td data-label="" id="watch-btn-{{ section.class_number }}">
             {% set is_watching = section.class_number in watching %}
             {% include "partials/watch_button.html" with context %}
           </td>

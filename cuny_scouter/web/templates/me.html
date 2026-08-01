@@ -11,7 +11,7 @@
       <tr>
         <th>Class #</th>
         <th>Course</th>
-        <th>Section</th>
+        <th class="col-section">Section</th>
         <th>Instructor</th>
         <th>Status</th>
         <th>Notify on</th>
@@ -22,19 +22,19 @@
       {% for watch in watches %}
       {% set section = sections.get(watch.class_number) %}
       <tr>
-        <td>{{ watch.class_number }}</td>
-        <td>{% if section %}CIS {{ section.course_number }} — {{ section.course_name }}{% else %}—{% endif %}</td>
-        <td>{% if section %}{{ section.section_code }}{% else %}—{% endif %}</td>
-        <td>{% if section %}{{ section.instructor or 'TBA' }}{% else %}—{% endif %}</td>
-        <td>
+        <td data-label="Class #">{{ watch.class_number }}</td>
+        <td data-label="Course">{% if section %}{{ section.subject }} {{ section.course_number }} — {{ section.course_name }}{% else %}—{% endif %}</td>
+        <td data-label="Section" class="col-section">{% if section %}{{ section.section_code }}{% else %}—{% endif %}</td>
+        <td data-label="Instructor">{% if section %}{{ section.instructor or 'TBA' }}{% else %}—{% endif %}</td>
+        <td data-label="Status">
           {% if section %}
           <span class="status-{{ section.status }}">
             {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
           </span>
           {% else %}—{% endif %}
         </td>
-        <td>{{ watch.notify_on | title }}</td>
-        <td id="watch-btn-{{ watch.class_number }}">
+        <td data-label="Notify on">{{ watch.notify_on | title }}</td>
+        <td data-label="" id="watch-btn-{{ watch.class_number }}">
           {% set is_watching = True %}
           {% set section = sections.get(watch.class_number) %}
           {% include "partials/watch_button.html" with context %}
