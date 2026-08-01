@@ -61,5 +61,13 @@
 <div id="sections-container">
   {% include "partials/courses.html" with context %}
 </div>
+<div id="show-more-container">
+  {% if has_more %}
+  <button class="btn btn-show-more"
+          hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
+          hx-target="#sections-container"
+          hx-swap="beforeend">Show more</button>
+  {% endif %}
+</div>
 
 {% endblock %}

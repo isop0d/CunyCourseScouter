@@ -73,23 +73,16 @@
   <p style="color:#666; padding: 0.5rem 0;">No sections match your filters.</p>
 {% endif %}
 
-{# Show-more button — OOB swap when appending, normal render on first load #}
+{# Show-more button — always OOB so it stays outside the results container.
+   Parent templates render the initial (non-HTMX) state directly. #}
+{% if is_htmx %}
 {% set search_url = '/schedule/search' if show_add else '/sections/partial' %}
-{% if is_append %}
+{% set results_target = '#schedule-search-results' if show_add else '#sections-container' %}
 <div id="show-more-container" hx-swap-oob="true">
   {% if has_more %}
   <button class="btn btn-show-more"
           hx-get="{{ search_url }}?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
-          hx-target="#sections-container"
-          hx-swap="beforeend">Show more</button>
-  {% endif %}
-</div>
-{% else %}
-<div id="show-more-container">
-  {% if has_more %}
-  <button class="btn btn-show-more"
-          hx-get="{{ search_url }}?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
-          hx-target="#sections-container"
+          hx-target="{{ results_target }}"
           hx-swap="beforeend">Show more</button>
   {% endif %}
 </div>
