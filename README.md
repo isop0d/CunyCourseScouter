@@ -1,6 +1,8 @@
 # CUNY Course Scouter
 
-A seat-tracker for Baruch College students. Search and browse Fall 2026 course sections, watch the ones you want, and get a Discord ping the moment a seat opens.
+A seat-tracker for Baruch College students. Search and browse Fall 2026 course sections, watch the ones you want, and get a Discord ping the moment a seat opens or changes status.
+
+Live at: [http://cunycoursescouter.duckdns.org](http://cunycoursescouter.duckdns.org)
 
 ---
 
@@ -8,32 +10,32 @@ A seat-tracker for Baruch College students. Search and browse Fall 2026 course s
 
 ```mermaid
 flowchart TD
-    A([Student visits site]) --> B[Browse & filter sections\ncourse name · instructor · code\nsubject · status · mode · days]
+    A([Student visits site]) --> B[Browse & filter sections\ncourse name · instructor · code\nsubject · status · mode]
     B --> C{Logged in?}
     C -- No --> D[Login with Discord OAuth]
     D --> C
     C -- Yes --> E[Click Watch on a section]
     E --> F[(watches table\nactive = TRUE)]
 
-    subgraph Worker ["Background Worker  (runs every 10 min)"]
-        G([Poll cycle starts]) --> H[GET CUNY Global Search\nfresh session cookie]
-        H --> I[POST institution + term\nPOST subject  ×63 subjects\nopen_class='' to include waitlisted]
-        I --> J[Parse HTML response\nper section: class number, status,\ninstructor, days/times, mode]
-        J --> K[Upsert sections table\nAppend section_snapshots]
-        K --> L[Diff against previous\npoll's snapshots]
-        L --> M{Any status\nchanges?}
-        M -- No --> N([Sleep until next poll])
-        M -- Yes --> O[Find active watches\nfor changed sections]
-        O --> P{Dedup checks}
-        P -- Already sent\ntoday --> N
-        P -- Within 60 min\ncooldown --> N
-        P -- OK to send --> Q[Post Discord embed\n@ mention student]
-        Q --> R[Record in notifications\nauto-deactivate watch]
-        R --> N
+    subgraph Worker ["Background Worker"]
+        G([Fast poll every 2 min]) --> H{Active watches?}
+        H -- Yes --> I[Fetch only watched subjects\nfrom CUNY Global Search]
+        H -- No --> J([Sleep])
+        I --> K[Upsert sections table\nAppend section_snapshots]
+        K --> L[Diff against previous snapshots]
+        L --> M{Status change?}
+        M -- No --> J
+        M -- Yes --> N[Find active watches\nfor changed sections]
+        N --> O[Post Discord embed\n@ mention student]
+        O --> P[Record in notifications\nauto-deactivate watch]
+        P --> J
+
+        Q([Full poll every 60 min]) --> R[Fetch all 63+ subjects]
+        R --> K
     end
 
-    F -.->|next poll picks up| O
-    Q -.->|DM or channel ping| S([Student gets notified])
+    F -.->|next fast poll picks up| N
+    O -.->|DM or channel ping| S([Student gets notified])
     S --> T[Student claims seat\nin CUNYfirst]
 ```
 
@@ -41,12 +43,16 @@ flowchart TD
 
 ## Features
 
-- **Live search** — filter by course name, instructor, section code, class number, or subject as you type (300 ms debounce, no page reload)
-- **Composable filters** — department dropdown, open/waitlist/closed status, instruction mode (in-person, online, hybrid), and day-of-week chip toggles all work together
+- **Live search** — filter by course name, instructor, subject, or course number as you type (300 ms debounce, no page reload)
+- **Composable filters** — department dropdown, open/waitlist/closed status, and instruction mode all work together
+- **Two-tier polling** — fast poll every 2 minutes for watched subjects, full catalog refresh every 60 minutes
+- **GRAD + UGRD support** — scrapes both undergraduate and graduate sections (BUSI, BUAD, CMIS, etc.)
 - **Discord login** — one click via OAuth2, no password or email required
 - **Watch / Unwatch** — HTMX toggle swaps just the button, no full reload
-- **Smart dedup** — three layers prevent duplicate pings: unique DB index per transition, 60-minute cooldown window, and auto-deactivation after the first alert
-- **2,300+ sections** — all 63 active Baruch subjects scraped every poll cycle
+- **Notify on any change** — pings you on open, waitlist, and closed status changes
+- **Smart dedup** — three layers prevent duplicate pings: unique DB index per transition, 60-minute cooldown, and auto-deactivation after first alert
+- **Dark mode** — op.gg-style navy and blue theme, persisted in localStorage
+- **2,700+ sections** — all Baruch subjects scraped each full poll cycle
 
 ---
 
@@ -58,10 +64,11 @@ flowchart TD
 | Frontend interactivity | HTMX (CDN, no build step) |
 | Database | PostgreSQL 16 (Docker) |
 | ORM / migrations | SQLAlchemy 2.x + Alembic |
-| Auth | Discord OAuth2 + signed session cookie |
+| Auth | Discord OAuth2 + signed session cookie (`itsdangerous`) |
 | Notifications | Discord webhook embeds |
 | Scraping | `requests` + BeautifulSoup4 |
 | Config | pydantic-settings (`.env` file) |
+| Deployment | Docker Compose on AWS EC2 t3.micro |
 
 ---
 
@@ -70,51 +77,51 @@ flowchart TD
 ```
 cuny_scouter/
 ├── scraper/
-│   ├── client.py        # HTTP session, 3-step POST chain to CUNY Global Search
-│   └── parser.py        # HTML → SectionRecord dataclasses, structural validation
+│   ├── client.py        # HTTP session, 3-step POST chain to CUNY Global Search, UGRD+GRAD support
+│   └── parser.py        # HTML → SectionRecord dataclasses, extracts subject from header
 ├── db/
 │   ├── models.py        # SQLAlchemy ORM (sections, watches, students, notifications)
 │   └── session.py       # engine + Session factory
 ├── diff.py              # compare snapshots → list[StatusEvent]
 ├── notifier.py          # Discord embed dispatch + 3-layer dedup
-├── scheduler.py         # poll loop with exponential backoff
+├── scheduler.py         # two-tier poll loop (fast + full)
 ├── config.py            # all env vars via pydantic-settings
 └── web/
     ├── __init__.py      # FastAPI app factory + SessionMiddleware
     ├── auth.py          # Discord OAuth2 flow
     ├── routes.py        # route handlers + filter logic
     └── templates/
-        ├── base.html
-        ├── index.html   # main browse page
-        ├── me.html      # student's active watches
+        ├── base.html              # CSS theme tokens, dark mode, nav
+        ├── index.html             # main browse page
+        ├── me.html                # student's active watches
         └── partials/
             ├── courses.html       # HTMX fragment: course blocks + result count
             └── watch_button.html  # HTMX fragment: watch/unwatch toggle
 
 alembic/versions/        # DB migrations
 tests/                   # pytest (parser + diff)
-docker-compose.yml       # postgres:16-alpine
-app.py                   # dev server entrypoint
+Dockerfile               # single image for web + worker
+docker-compose.yml       # db + migrate + web + worker services
 ```
 
 ---
 
-## Setup
+## Local development setup
 
 ### Prerequisites
 
 - Python 3.12+
-- Docker (for PostgreSQL)
+- Docker
 - A Discord application ([discord.com/developers/applications](https://discord.com/developers/applications))
 
 ### 1. Clone and create virtualenv
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/isop0d/CunyCourseScouter.git
 cd CunyCourseScouter
 python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
-.venv/bin/pip install psycopg2-binary itsdangerous
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
 
 ### 2. Configure environment
@@ -122,80 +129,106 @@ python3 -m venv .venv
 Create a `.env` file in the project root:
 
 ```env
-# Database
 DATABASE_URL=postgresql://scouter:scouter@localhost:5432/cuny_scouter
 POSTGRES_PASSWORD=scouter
-
-# Session security (change in production)
 SECRET_KEY=some-random-secret-string
-
-# Discord webhook — post notifications here
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-
-# Discord OAuth — from your Discord application
 DISCORD_CLIENT_ID=your_client_id
 DISCORD_CLIENT_SECRET=your_client_secret
 DISCORD_REDIRECT_URI=http://localhost:8000/auth/discord/callback
+FAST_POLL_INTERVAL_SECONDS=120
+FULL_POLL_INTERVAL_SECONDS=3600
 ```
 
-In your Discord application, go to **OAuth2 → Redirects** and add `http://localhost:8000/auth/discord/callback`.
+In your Discord application go to **OAuth2 → Redirects** and add `http://localhost:8000/auth/discord/callback`.
 
-### 3. Start the database
+### 3. Start the database and run migrations
 
 ```bash
 docker compose up -d db
+alembic upgrade head
 ```
 
-### 4. Run migrations
+### 4. Start the web app
 
 ```bash
-.venv/bin/alembic upgrade head
-```
-
-### 5. Start the web app
-
-```bash
-.venv/bin/python3 app.py
+python -m uvicorn cuny_scouter.web:app --reload
 ```
 
 Open [http://localhost:8000](http://localhost:8000).
 
-### 6. Run the background worker (separate terminal)
+### 5. Run the background worker (separate terminal)
 
 ```bash
-.venv/bin/python3 -m cuny_scouter.scheduler
+python -m cuny_scouter.scheduler
 ```
 
-The worker scrapes all 63 Baruch subjects and populates the database on its first run (~3–4 minutes). Subsequent polls run every 10 minutes by default (`POLL_INTERVAL_SECONDS` in `.env`).
+The worker runs a full poll on startup (~8-10 minutes to scrape all subjects), then switches to fast polls every 2 minutes for watched subjects and a full refresh every 60 minutes.
+
+---
+
+## Production deployment (AWS EC2)
+
+The app runs fully in Docker Compose on a single EC2 t3.micro instance (AWS Free Tier).
+
+### Services
+
+| Service | Command |
+|---|---|
+| `db` | PostgreSQL 16 |
+| `migrate` | `alembic upgrade head` (runs once at deploy, then exits) |
+| `web` | `uvicorn cuny_scouter.web:app --host 0.0.0.0 --port 8000` |
+| `worker` | `python -m cuny_scouter.scheduler` |
+
+### Deploy steps
+
+```bash
+# On EC2 after git pull
+docker compose run --rm migrate
+docker compose up -d --build web worker
+```
+
+### Required `.env` on EC2
+
+```env
+POSTGRES_PASSWORD=strong-password
+SECRET_KEY=generate-with-python3-secrets-token-hex-32
+DISCORD_CLIENT_ID=your_client_id
+DISCORD_CLIENT_SECRET=your_client_secret
+DISCORD_REDIRECT_URI=http://cunycoursescouter.duckdns.org/auth/discord/callback
+DISCORD_WEBHOOK_URL=your_webhook_url
+FAST_POLL_INTERVAL_SECONDS=120
+FULL_POLL_INTERVAL_SECONDS=3600
+```
+
+Nginx proxies port 80 → 8000 so the site is reachable without a port number.
 
 ---
 
 ## Running tests
 
 ```bash
-.venv/bin/pytest
+pytest
 ```
-
-Tests cover the HTML parser (all 63+ section fields, status detection, structural validation) and the diff engine (open→closed, closed→open, waitlist transitions, new sections, dedup).
 
 ---
 
 ## Scraper notes
 
-CUNY's course search uses a PeopleSoft wizard that requires a 3-step POST chain per subject:
+CUNY's course search uses a PeopleSoft wizard requiring a 3-step POST chain per subject:
 
 1. **GET** — establishes a `JSESSIONID` session cookie
 2. **POST** (institution + term) — selects Baruch, Fall 2026
-3. **POST** (subject) — returns the section HTML with `open_class=""` to include waitlisted sections (omitting this hides them)
+3. **POST** (subject) — returns section HTML with `open_class=""` to include waitlisted sections
 
-Section status is parsed from the `src` attribute of a status image — the `alt` attribute incorrectly says "Open" for all statuses. The HTML has unclosed `<tbody>/<tr>` tags, so sections are selected directly by `td[data-label='Class']` rather than traversing the table structure.
+Each subject is tried with `courseCareer=UGRD` first, then `GRAD` if no results are found. Subject codes are parsed from the HTML header (e.g. `BUAD` POST key → `BUS` display code) rather than the POST key.
 
 ---
 
 ## Notification dedup
 
-Three layers prevent students from being spammed:
+Three layers prevent duplicate pings:
 
-1. **Unique DB index** — one `notifications` row per `(watch_id, from_status, to_status)` per calendar day
-2. **60-minute cooldown** — skips sending if the same watch+status was notified within the last hour (guards against midnight resetting the daily index)
-3. **Auto-deactivation** — after the first open alert, the watch is deactivated so the student only gets one ping per enrollment attempt. They can re-watch from the `/me` page.
+1. **Unique DB index** — one `notifications` row per `(watch_id, from_status, to_status)` transition
+2. **60-minute cooldown** — skips if same watch+status was notified within the last hour
+3. **Auto-deactivation** — watch is deactivated after first alert; student can re-watch from `/me`
