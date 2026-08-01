@@ -49,6 +49,20 @@ def _decode_legacy_id(node_id: str) -> int | None:
         return None
 
 
+_HEADERS = {
+    "Authorization": _AUTH,
+    "Content-Type": "application/json",
+    # RMP blocks requests that don't look like they come from a browser.
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Origin": "https://www.ratemyprofessors.com",
+    "Referer": "https://www.ratemyprofessors.com/",
+}
+
+
 def search_teacher(name: str, school_id: int, timeout: float = 10.0) -> list[dict]:
     """
     Search RMP for a teacher by name at the given school.
@@ -58,10 +72,7 @@ def search_teacher(name: str, school_id: int, timeout: float = 10.0) -> list[dic
     try:
         resp = httpx.post(
             _RMP_URL,
-            headers={
-                "Authorization": _AUTH,
-                "Content-Type": "application/json",
-            },
+            headers=_HEADERS,
             json={
                 "query": _QUERY,
                 "variables": {
