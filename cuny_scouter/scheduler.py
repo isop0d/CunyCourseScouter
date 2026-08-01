@@ -252,7 +252,7 @@ def run_worker() -> None:
 
     log.info(f"Worker started. Fast poll: {fast_interval}s, Full poll: {full_interval}s.")
 
-    last_full = 0.0  # force full poll on startup
+    last_full = float("-inf")  # force full poll on startup
 
     while True:
         now = time.monotonic()
