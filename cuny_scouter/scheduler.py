@@ -17,7 +17,8 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 
 from cuny_scouter.config import settings
-from cuny_scouter.db.models import Section, ScrapeRun, SectionSnapshot, Watch
+from cuny_scouter.db.models import Section, ScrapeRun, SectionMeeting, SectionSnapshot, Watch
+from cuny_scouter.meetings import parse_meetings
 from cuny_scouter.db.session import get_session
 from cuny_scouter.diff import compute_diff
 from cuny_scouter.notifier import dispatch_notifications
@@ -101,6 +102,27 @@ def _upsert_subject(db, run: ScrapeRun, fetch_key: str, html: str) -> list:
             for r in records
         ],
     )
+
+    # Replace meeting rows for every section in this batch.
+    class_numbers = [r.class_number for r in records]
+    if class_numbers:
+        db.execute(
+            text("DELETE FROM section_meetings WHERE section_id = ANY(:ids)"),
+            {"ids": class_numbers},
+        )
+        db.bulk_insert_mappings(
+            SectionMeeting,
+            [
+                {
+                    "section_id": r.class_number,
+                    "day_of_week": m.day_of_week,
+                    "start_minute": m.start_minute,
+                    "end_minute": m.end_minute,
+                }
+                for r in records
+                for m in parse_meetings(r.days_times)
+            ],
+        )
 
     return records
 
