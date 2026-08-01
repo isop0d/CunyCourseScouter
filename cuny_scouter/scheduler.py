@@ -416,12 +416,10 @@ def _upsert_professor(db, normalized_key: str, last: str, initial: str, nodes: l
 def run_worker() -> None:
     fast_interval = settings.fast_poll_interval_seconds
     full_interval = settings.full_poll_interval_seconds
-    rmp_interval = settings.rmp_refresh_interval_seconds
 
-    log.info(f"Worker started. Fast poll: {fast_interval}s, Full poll: {full_interval}s, RMP: {rmp_interval}s.")
+    log.info(f"Worker started. Fast poll: {fast_interval}s, Full poll: {full_interval}s.")
 
     last_full = float("-inf")   # force full poll on startup
-    last_rmp = float("-inf")    # force RMP refresh on startup
 
     while True:
         now = time.monotonic()
@@ -437,13 +435,6 @@ def run_worker() -> None:
                 poll_fast()
             except Exception:
                 log.exception("Fast poll failed.")
-
-        if now - last_rmp >= rmp_interval:
-            try:
-                refresh_professors()
-                last_rmp = time.monotonic()
-            except Exception:
-                log.exception("RMP refresh failed.")
 
         log.info(f"Sleeping {fast_interval}s.")
         time.sleep(fast_interval)

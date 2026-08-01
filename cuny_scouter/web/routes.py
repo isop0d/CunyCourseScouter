@@ -1,19 +1,25 @@
 import json
+import logging
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from cuny_scouter.config import settings
 from cuny_scouter.db.models import Professor, ScheduleEntry, Section, SectionMeeting, ScrapeRun, Student, Watch
 from cuny_scouter.db.session import get_session
-from cuny_scouter.professors import normalize_instructor
+from cuny_scouter.professors import match_rmp, normalize_instructor
+from cuny_scouter.rmp import search_teacher
 from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user, join_guild
+
+log = logging.getLogger(__name__)
 
 _ET = ZoneInfo("America/New_York")
 
@@ -77,18 +83,60 @@ def _apply_filters(query, q: str, subject: str, status: str, mode: str):
 _PAGE_SIZE = 25
 
 
-def _fetch_professor_map(db: Session, sections) -> dict[str, "Professor | None"]:
-    """Return a map of normalized_name -> Professor for a list of sections."""
-    keys = set()
+def _fetch_professor_map(
+    db: Session, sections
+) -> tuple[dict[str, "Professor"], list[tuple[str, str, str]]]:
+    """
+    Return (prof_map, missing) where:
+    - prof_map: normalized_name -> Professor for rows already in DB
+    - missing:  [(key, last, initial)] for instructors with no DB row yet
+    """
+    keys: dict[str, tuple[str, str]] = {}  # key -> (last, initial)
     for s in sections:
         if s.instructor:
-            key, _, _ = normalize_instructor(s.instructor)
+            key, last, initial = normalize_instructor(s.instructor)
             if key:
-                keys.add(key)
+                keys[key] = (last, initial)
     if not keys:
-        return {}
+        return {}, []
     profs = db.query(Professor).filter(Professor.normalized_name.in_(keys)).all()
-    return {p.normalized_name: p for p in profs}
+    prof_map = {p.normalized_name: p for p in profs}
+    missing = [(k, v[0], v[1]) for k, v in keys.items() if k not in prof_map]
+    return prof_map, missing
+
+
+def _rmp_fetch_bg(missing: list[tuple[str, str, str]]) -> None:
+    """Background task: fetch RMP for professors not yet in DB after the response is sent."""
+    if not missing:
+        return
+    db = get_session()
+    try:
+        now = datetime.now(timezone.utc)
+        for key, last, initial in missing:
+            if db.query(Professor).filter(Professor.normalized_name == key).first():
+                continue  # another request already fetched it
+            nodes = search_teacher(last, settings.rmp_school_id)
+            node, status = match_rmp(last, initial, nodes)
+            display = f"{last}, {initial}." if initial else last
+            prof = Professor(
+                name=f"{node['firstName']} {node['lastName']}".strip() if node else display,
+                normalized_name=key,
+                rmp_legacy_id=node.get("legacyId") if node else None,
+                avg_rating=node.get("avgRating") if node else None,
+                avg_difficulty=node.get("avgDifficulty") if node else None,
+                num_ratings=node.get("numRatings", 0) if node else 0,
+                would_take_again=node.get("wouldTakeAgainPercent") if node else None,
+                match_status=status,
+                rmp_url=node.get("rmpUrl") if node else None,
+                fetched_at=now,
+            )
+            db.add(prof)
+            time.sleep(0.3)
+        db.commit()
+    except Exception:
+        log.exception("Background RMP fetch failed")
+    finally:
+        db.close()
 
 
 def _attach_professor(section, prof_map: dict) -> "Professor | None":
@@ -128,6 +176,7 @@ def _subject_list(db: Session) -> list[tuple[str, str]]:
 @router.get("/", response_class=HTMLResponse)
 async def index(
     request: Request,
+    background_tasks: BackgroundTasks,
     q: str = "",
     subject: str = "",
     status: str = "",
@@ -141,7 +190,9 @@ async def index(
     filtered = _apply_filters(base_query, q, subject, status, mode)
     total_count = filtered.count()
     sections = filtered.limit(_PAGE_SIZE).all()
-    prof_map = _fetch_professor_map(db, sections)
+    prof_map, missing = _fetch_professor_map(db, sections)
+    if missing:
+        background_tasks.add_task(_rmp_fetch_bg, missing)
 
     last_run = (
         db.query(ScrapeRun)
@@ -175,6 +226,7 @@ async def index(
 @router.get("/sections/partial", response_class=HTMLResponse)
 async def sections_partial(
     request: Request,
+    background_tasks: BackgroundTasks,
     q: str = "",
     subject: str = "",
     status: str = "",
@@ -189,7 +241,9 @@ async def sections_partial(
     filtered = _apply_filters(base_query, q, subject, status, mode)
     total_count = filtered.count()
     sections = filtered.offset(offset).limit(_PAGE_SIZE).all()
-    prof_map = _fetch_professor_map(db, sections)
+    prof_map, missing = _fetch_professor_map(db, sections)
+    if missing:
+        background_tasks.add_task(_rmp_fetch_bg, missing)
 
     next_offset = offset + _PAGE_SIZE
     has_more = next_offset < total_count
@@ -476,6 +530,7 @@ async def schedule_grid_partial(
 @router.get("/schedule/search", response_class=HTMLResponse)
 async def schedule_search(
     request: Request,
+    background_tasks: BackgroundTasks,
     q: str = "",
     subject: str = "",
     status: str = "",
@@ -489,7 +544,9 @@ async def schedule_search(
     filtered = _apply_filters(base_query, q, subject, status, mode)
     total_count = filtered.count()
     sections = filtered.offset(offset).limit(_PAGE_SIZE).all()
-    prof_map = _fetch_professor_map(db, sections)
+    prof_map, missing = _fetch_professor_map(db, sections)
+    if missing:
+        background_tasks.add_task(_rmp_fetch_bg, missing)
     next_offset = offset + _PAGE_SIZE
     has_more = next_offset < total_count
     return templates.TemplateResponse(request, "partials/courses.html", {
