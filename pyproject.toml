@@ -24,5 +24,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio"]
 
+[tool.setuptools.packages.find]
+include = ["cuny_scouter*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
