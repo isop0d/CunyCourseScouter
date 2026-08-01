@@ -17,8 +17,10 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 
 from cuny_scouter.config import settings
-from cuny_scouter.db.models import Section, ScrapeRun, SectionMeeting, SectionSnapshot, Watch
+from cuny_scouter.db.models import Professor, Section, ScrapeRun, SectionMeeting, SectionSnapshot, Watch
 from cuny_scouter.meetings import parse_meetings
+from cuny_scouter.professors import classify, match_rmp, normalize_instructor
+from cuny_scouter.rmp import search_teacher
 from cuny_scouter.db.session import get_session
 from cuny_scouter.diff import compute_diff
 from cuny_scouter.notifier import dispatch_notifications
@@ -337,13 +339,89 @@ def poll_full() -> None:
     _run_poll("FULL", subject_pairs, delay=1.5)
 
 
+def refresh_professors() -> None:
+    """Backfill / refresh the professors table from RMP. Runs on a slow cadence."""
+    db = get_session()
+    try:
+        # Collect distinct non-staff instructor strings
+        rows = db.query(Section.instructor).distinct().all()
+        names = [r[0] for r in rows if r[0] and classify(r[0]) == "name"]
+        log.info(f"RMP refresh: {len(names)} distinct instructor strings.")
+
+        stale_threshold = datetime.now(timezone.utc)
+
+        for raw in names:
+            normalized_key, last, initial = normalize_instructor(raw)
+            if not normalized_key:
+                continue
+
+            existing = db.query(Professor).filter(Professor.normalized_name == normalized_key).first()
+            if existing and existing.fetched_at:
+                # Skip recently fetched entries
+                age_s = (stale_threshold - existing.fetched_at).total_seconds()
+                if age_s < settings.rmp_refresh_interval_seconds:
+                    continue
+
+            if classify(raw) == "staff":
+                _upsert_professor(db, normalized_key, last, initial, [], "staff")
+                continue
+
+            nodes = search_teacher(last, settings.rmp_school_id)
+            node, status = match_rmp(last, initial, nodes)
+            _upsert_professor(db, normalized_key, last, initial, [node] if node else [], status)
+            time.sleep(0.5)  # gentle rate limiting
+
+        db.commit()
+        log.info("RMP refresh complete.")
+    except Exception:
+        log.exception("RMP refresh failed.")
+    finally:
+        db.close()
+
+
+def _upsert_professor(db, normalized_key: str, last: str, initial: str, nodes: list, status: str) -> None:
+    now = datetime.now(timezone.utc)
+    node = nodes[0] if nodes else None
+    existing = db.query(Professor).filter(Professor.normalized_name == normalized_key).first()
+
+    display_name = f"{last}, {initial}." if initial else last
+
+    if existing:
+        existing.match_status = status
+        existing.fetched_at = now
+        if node:
+            existing.name = f"{node.get('firstName', '')} {node.get('lastName', '')}".strip() or display_name
+            existing.rmp_legacy_id = node.get("legacyId")
+            existing.avg_rating = node.get("avgRating")
+            existing.avg_difficulty = node.get("avgDifficulty")
+            existing.num_ratings = node.get("numRatings", 0)
+            existing.would_take_again = node.get("wouldTakeAgainPercent")
+            existing.rmp_url = node.get("rmpUrl")
+    else:
+        prof = Professor(
+            name=f"{node.get('firstName', '')} {node.get('lastName', '')}".strip() if node else display_name,
+            normalized_name=normalized_key,
+            rmp_legacy_id=node.get("legacyId") if node else None,
+            avg_rating=node.get("avgRating") if node else None,
+            avg_difficulty=node.get("avgDifficulty") if node else None,
+            num_ratings=node.get("numRatings", 0) if node else 0,
+            would_take_again=node.get("wouldTakeAgainPercent") if node else None,
+            match_status=status,
+            rmp_url=node.get("rmpUrl") if node else None,
+            fetched_at=now,
+        )
+        db.add(prof)
+
+
 def run_worker() -> None:
     fast_interval = settings.fast_poll_interval_seconds
     full_interval = settings.full_poll_interval_seconds
+    rmp_interval = settings.rmp_refresh_interval_seconds
 
-    log.info(f"Worker started. Fast poll: {fast_interval}s, Full poll: {full_interval}s.")
+    log.info(f"Worker started. Fast poll: {fast_interval}s, Full poll: {full_interval}s, RMP: {rmp_interval}s.")
 
-    last_full = float("-inf")  # force full poll on startup
+    last_full = float("-inf")   # force full poll on startup
+    last_rmp = float("-inf")    # force RMP refresh on startup
 
     while True:
         now = time.monotonic()
@@ -359,6 +437,13 @@ def run_worker() -> None:
                 poll_fast()
             except Exception:
                 log.exception("Fast poll failed.")
+
+        if now - last_rmp >= rmp_interval:
+            try:
+                refresh_professors()
+                last_rmp = time.monotonic()
+            except Exception:
+                log.exception("RMP refresh failed.")
 
         log.info(f"Sleeping {fast_interval}s.")
         time.sleep(fast_interval)

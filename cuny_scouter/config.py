@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # Scraper
     fast_poll_interval_seconds: int = 120
     full_poll_interval_seconds: int = 3600
+    rmp_refresh_interval_seconds: int = 43200  # 12 hours
+    rmp_school_id: int = 222  # Baruch College
     institution: str = "BAR01"
     institution_name: str = "Baruch College | "
     term_code: str = "1269"
