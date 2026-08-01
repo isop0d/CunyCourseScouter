@@ -17,10 +17,8 @@ _ET = ZoneInfo("America/New_York")
 from cuny_scouter.config import settings as _settings
 
 templates = Jinja2Templates(directory="cuny_scouter/web/templates")
-templates.env.globals["config"] = {
-    "umami_site_id": _settings.umami_site_id,
-    "umami_script_url": _settings.umami_script_url,
-}
+templates.env.globals["umami_site_id"] = _settings.umami_site_id
+templates.env.globals["umami_script_url"] = _settings.umami_script_url
 
 def _to_et(dt):
     if not dt:

@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}CUNY Course Scouter{% endblock %}</title>
-  {% if config.umami_site_id %}
-  <script defer src="{{ config.umami_script_url }}" data-website-id="{{ config.umami_site_id }}"></script>
+  {% if umami_site_id %}
+  <script defer src="{{ umami_script_url }}" data-website-id="{{ umami_site_id }}"></script>
   {% endif %}
   <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
   <style>
