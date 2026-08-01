@@ -7,6 +7,7 @@
   <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 17px; }
 
     /* ── Theme tokens ── */
     :root {
@@ -57,7 +58,7 @@
       font-family: system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.5;
     }
 
@@ -106,9 +107,9 @@
     .btn-discord { background: #5865F2; color: #fff; border-color: #5865F2; }
     .btn-discord:hover { background: #4752c4; }
     .btn-watch   { background: var(--border-strong); color: var(--bg); border-color: var(--border-strong); }
-    .btn-watch:hover { opacity: 0.8; }
+    .btn-watch:hover { background: var(--border-strong); opacity: 1; }
     .btn-unwatch { background: var(--btn-bg); color: var(--text); border-color: var(--border); }
-    .btn-unwatch:hover { background: var(--btn-hover); }
+    .btn-unwatch:hover { background: var(--btn-bg); }
 
     /* ── Filters ── */
     .filters {
@@ -187,33 +188,33 @@
     .btn-show-more { font-size: 0.82rem; padding: 0.35rem 1.25rem; }
 
     /* ── Section cards (index / section browser) ── */
-    #results-list { display: flex; flex-direction: column; gap: 0.3rem; }
-    .section-card { }
+    #results-list { display: flex; flex-direction: column; gap: 0.55rem; }
+    .section-card { background: var(--bg-alt); border-radius: 3px; overflow: hidden; }
     .section-card-hdr {
       font-size: 0.72rem;
       font-weight: 600;
       color: var(--text-head);
-      background: var(--bg-stripe);
       padding: 0.22rem 0.65rem;
+      border-bottom: 1px solid var(--border);
     }
     .section-card-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 3.5rem 1fr 1fr 3.5rem 4rem auto;
       align-items: center;
-      gap: 0.5rem;
+      column-gap: 0.75rem;
       padding: 0.3rem 0.65rem;
-      background: var(--bg-alt);
       min-width: 0;
     }
-    .sc-num   { font-size: 0.74rem; color: var(--text-muted); flex-shrink: 0; }
-    .sc-times { font-size: 0.78rem; flex: 2 1 0; min-width: 0;
-                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sc-instr { font-size: 0.76rem; color: var(--text-muted); flex: 2 1 0; min-width: 0;
-                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sc-rmp   { font-size: 0.74rem; flex-shrink: 0; }
+    .sc-num    { font-size: 0.74rem; color: var(--text-muted); min-width: 0; }
+    .sc-times  { font-size: 0.78rem; min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-instr  { font-size: 0.76rem; color: var(--text); min-width: 0;
+                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-rmp    { font-size: 0.74rem; min-width: 0; }
     .sc-rmp .rmp-link  { font-size: 0.74rem; }
     .sc-rmp .rmp-count { font-size: 0.7rem; }
-    .sc-status { font-size: 0.74rem; flex-shrink: 0; }
-    .sc-watch  { flex-shrink: 0; }
+    .sc-status { font-size: 0.74rem; }
+    .sc-watch  { }
 
     /* ── Schedule builder ── */
 
@@ -441,6 +442,7 @@
       border-left-color: #d97706;
     }
     .sched-event-code  { font-weight: 600; color: var(--text); }
+    .sched-event-time  { color: var(--text-muted); font-size: 0.64rem; }
     .sched-event-room  { color: var(--text-muted); }
     .sched-event-instr { color: var(--text-muted); }
     .sched-conflict-warn { color: #d97706; font-size: 0.62rem; margin-top: 0.1rem; }

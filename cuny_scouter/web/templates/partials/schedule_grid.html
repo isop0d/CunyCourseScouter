@@ -41,6 +41,7 @@
       <div class="sched-event sched-color-{{ cidx }}{% if event.is_conflict %} sched-conflict{% endif %}"
            style="top:{{ event.top_pct }}%; height:{{ event.height_pct }}%; left:{{ event.left_pct }}%; width:{{ event.width_pct }}%;">
         <div class="sched-event-code">{{ event.section.subject }} {{ event.section.course_number }}</div>
+        <div class="sched-event-time">{{ event.start_time }}–{{ event.end_time }}</div>
         {% if event.section.room %}<div class="sched-event-room">{{ event.section.room }}</div>{% endif %}
         {% if event.section.instructor %}<div class="sched-event-instr">{{ event.section.instructor }}</div>{% endif %}
         {% if event.is_conflict %}<div class="sched-conflict-warn">! Conflict</div>{% endif %}

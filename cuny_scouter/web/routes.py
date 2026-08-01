@@ -384,6 +384,13 @@ async def logout(request: Request):
 
 # ── Schedule builder ─────────────────────────────────────────────────────────
 
+def _fmt_minute(m: int) -> str:
+    h, mn = divmod(m, 60)
+    period = "am" if h < 12 else "pm"
+    h12 = h % 12 or 12
+    return f"{h12}:{mn:02d}{period}"
+
+
 _GRID_START = 7 * 60    # 7:00 AM in minutes
 _GRID_END = 21 * 60     # 9:00 PM in minutes
 _GRID_SPAN = _GRID_END - _GRID_START   # 840 minutes
@@ -445,6 +452,8 @@ def _assign_lanes_for_day(day_meetings: list) -> list[dict]:
             "height_pct": round((end - start) / _GRID_SPAN * 100, 3),
             "left_pct": round(lane_index / lane_count * 100, 3),
             "width_pct": round(100 / lane_count, 3),
+            "start_time": _fmt_minute(meeting.start_minute),
+            "end_time": _fmt_minute(meeting.end_minute),
         })
 
     return result
