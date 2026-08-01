@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import or_, cast, String
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from cuny_scouter.db.models import Section, ScrapeRun, Student, Watch
@@ -59,15 +59,14 @@ def _apply_filters(query, q: str, subject: str, status: str, mode: str):
     if mode:
         query = query.filter(Section.instruction_mode == mode)
     if q:
-        term = f"%{q}%"
-        query = query.filter(or_(
-            Section.course_name.ilike(term),
-            Section.instructor.ilike(term),
-            Section.section_code.ilike(term),
-            Section.course_number.ilike(term),
-            Section.subject.ilike(term),
-            cast(Section.class_number, String).ilike(term),
-        ))
+        for token in q.split():
+            term = f"%{token}%"
+            query = query.filter(or_(
+                Section.course_name.ilike(term),
+                Section.instructor.ilike(term),
+                Section.course_number.ilike(term),
+                Section.subject.ilike(term),
+            ))
     return query
 
 

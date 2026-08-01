@@ -95,7 +95,7 @@ class Watch(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"))
     class_number: Mapped[int] = mapped_column(Integer)
-    notify_on: Mapped[str] = mapped_column(String(20), default="open")  # open|closed|waitlist|any
+    notify_on: Mapped[str] = mapped_column(String(20), default="any")  # open|closed|waitlist|any
     auto_deactivate: Mapped[bool] = mapped_column(Boolean, default=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=_now)

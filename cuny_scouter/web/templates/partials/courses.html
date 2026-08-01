@@ -1,6 +1,4 @@
-<!-- result count (replaces the outer meta div via OOB swap) -->
-<div id="result-meta"
-     hx-swap-oob="innerHTML">
+<div id="result-meta" hx-swap-oob="innerHTML">
   {% if section_count == 0 %}
     No sections found
   {% else %}
@@ -16,7 +14,6 @@
       <thead>
         <tr>
           <th>Class #</th>
-          <th>Section</th>
           <th>Days &amp; Times</th>
           <th>Instructor</th>
           <th>Mode</th>
@@ -29,13 +26,12 @@
         {% for section in course.sections %}
         <tr>
           <td>{{ section.class_number }}</td>
-          <td>{{ section.section_code }}</td>
           <td>{{ section.days_times or '—' }}</td>
           <td>{{ section.instructor or 'TBA' }}</td>
-          <td style="white-space:nowrap;">{{ section.instruction_mode or '—' }}</td>
-          <td style="white-space:nowrap;">{{ section.meeting_dates or '—' }}</td>
+          <td>{{ section.instruction_mode or '—' }}</td>
+          <td>{{ section.meeting_dates or '—' }}</td>
           <td>
-            <span class="badge badge-{{ section.status }}">
+            <span class="status-{{ section.status }}">
               {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
             </span>
           </td>
@@ -50,5 +46,5 @@
   </div>
   {% endfor %}
 {% else %}
-  <p class="meta" style="padding:1rem 0;">No sections match your filters. Try broadening your search.</p>
+  <p style="color:#666; padding: 0.5rem 0;">No sections match your filters.</p>
 {% endif %}

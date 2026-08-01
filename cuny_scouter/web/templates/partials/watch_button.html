@@ -1,17 +1,17 @@
 {% if is_watching %}
-<button class="btn btn-unwatch btn-sm"
+<button class="btn btn-unwatch"
         hx-delete="/watch/{{ section.class_number }}"
         hx-target="this"
         hx-swap="outerHTML">
   Unwatch
 </button>
 {% elif student %}
-<button class="btn btn-watch btn-sm"
+<button class="btn btn-watch"
         hx-post="/watch/{{ section.class_number }}"
         hx-target="this"
         hx-swap="outerHTML">
   Watch
 </button>
 {% else %}
-<a href="/auth/discord" class="btn btn-discord btn-sm">Login to watch</a>
+<a href="/auth/discord" class="btn btn-discord">Login to watch</a>
 {% endif %}

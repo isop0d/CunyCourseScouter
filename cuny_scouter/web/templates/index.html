@@ -3,93 +3,59 @@
 
 {% block content %}
 
-<form id="filter-form">
+<form id="filter-form" class="filters">
+  <input
+    class="search-input"
+    type="search"
+    name="q"
+    value="{{ q }}"
+    placeholder="Search course, instructor, code..."
+    autocomplete="off"
+    hx-get="/sections/partial"
+    hx-trigger="input changed delay:300ms, search"
+    hx-target="#sections-container"
+    hx-include="#filter-form"
+    hx-swap="innerHTML"
+    hx-indicator="#loading"
+  >
 
-  <!-- Search bar -->
-  <div class="filter-bar">
-    <div class="search-wrap">
-      <span class="search-icon">&#128269;</span>
-      <input
-        class="search-input"
-        type="search"
-        name="q"
-        value="{{ q }}"
-        placeholder="Search by course name, instructor, class code, number…"
-        autocomplete="off"
-        hx-get="/sections/partial"
-        hx-trigger="input changed delay:300ms, search"
-        hx-target="#sections-container"
-        hx-include="#filter-form"
-        hx-swap="innerHTML"
-        hx-indicator="#loading"
-      >
-    </div>
+  <select class="filter-select" name="subject"
+    hx-get="/sections/partial" hx-trigger="change"
+    hx-target="#sections-container" hx-include="#filter-form" hx-swap="innerHTML">
+    <option value="">All departments</option>
+    {% for code, label in subject_list %}
+    <option value="{{ code }}" {% if code == selected_subject %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
 
-    <div class="filter-row">
-      <!-- Department -->
-      <select
-        class="filter-select"
-        name="subject"
-        hx-get="/sections/partial"
-        hx-trigger="change"
-        hx-target="#sections-container"
-        hx-include="#filter-form"
-        hx-swap="innerHTML"
-      >
-        <option value="">All departments</option>
-        {% for code, label in subject_list %}
-        <option value="{{ code }}" {% if code == selected_subject %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
+  <select class="filter-select" name="status"
+    hx-get="/sections/partial" hx-trigger="change"
+    hx-target="#sections-container" hx-include="#filter-form" hx-swap="innerHTML">
+    <option value="">All statuses</option>
+    <option value="open"     {% if selected_status == 'open' %}selected{% endif %}>Open</option>
+    <option value="waitlist" {% if selected_status == 'waitlist' %}selected{% endif %}>Waitlist</option>
+    <option value="closed"   {% if selected_status == 'closed' %}selected{% endif %}>Closed</option>
+  </select>
 
-      <!-- Status -->
-      <select
-        class="filter-select"
-        name="status"
-        hx-get="/sections/partial"
-        hx-trigger="change"
-        hx-target="#sections-container"
-        hx-include="#filter-form"
-        hx-swap="innerHTML"
-      >
-        <option value="">All statuses</option>
-        <option value="open"     {% if selected_status == 'open' %}selected{% endif %}>Open</option>
-        <option value="waitlist" {% if selected_status == 'waitlist' %}selected{% endif %}>Waitlist</option>
-        <option value="closed"   {% if selected_status == 'closed' %}selected{% endif %}>Closed</option>
-      </select>
+  <select class="filter-select" name="mode"
+    hx-get="/sections/partial" hx-trigger="change"
+    hx-target="#sections-container" hx-include="#filter-form" hx-swap="innerHTML">
+    <option value="">All modes</option>
+    {% for value, label in mode_options %}
+    <option value="{{ value }}" {% if value == selected_mode %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
 
-      <!-- Instruction mode -->
-      <select
-        class="filter-select"
-        name="mode"
-        hx-get="/sections/partial"
-        hx-trigger="change"
-        hx-target="#sections-container"
-        hx-include="#filter-form"
-        hx-swap="innerHTML"
-      >
-        <option value="">All modes</option>
-        {% for value, label in mode_options %}
-        <option value="{{ value }}" {% if value == selected_mode %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-
-    </div>
-  </div>
-
+  <span id="loading" class="htmx-indicator">Loading...</span>
 </form>
 
-<!-- Loading indicator + result count -->
-<div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem;">
-  <div class="result-meta" id="result-meta">
-    {% if section_count == 0 %}
-      No sections found
-    {% else %}
-      {{ section_count }} section{{ 's' if section_count != 1 else '' }} across {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
-      {%- if last_run %} &mdash; updated {{ (last_run.finished_at | to_et).strftime('%b %d, %I:%M %p') }} ET{% endif %}
-    {% endif %}
-  </div>
-  <span id="loading" class="htmx-indicator" style="font-size:0.8rem;color:#888;">Loading…</span>
+<div class="result-meta" id="result-meta">
+  {% if section_count == 0 %}
+    No sections found
+  {% else %}
+    {{ section_count }} section{{ 's' if section_count != 1 else '' }} across {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
+    {%- if last_run %} — updated {{ (last_run.finished_at | to_et).strftime('%b %d, %I:%M %p') }} ET{% endif %}
+  {% endif %}
 </div>
 
 <div id="sections-container">

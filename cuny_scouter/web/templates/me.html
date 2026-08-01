@@ -28,7 +28,9 @@
         <td>{% if section %}{{ section.instructor or 'TBA' }}{% else %}—{% endif %}</td>
         <td>
           {% if section %}
-          <span class="badge badge-{{ section.status }}">{{ section.status | title }}</span>
+          <span class="status-{{ section.status }}">
+            {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
+          </span>
           {% else %}—{% endif %}
         </td>
         <td>{{ watch.notify_on | title }}</td>
