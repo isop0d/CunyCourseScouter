@@ -10,88 +10,52 @@
 {% endif %}
 
 {% if courses %}
-{% set col_count = 9 if show_add else 8 %}
 
-{# First page: full table wrapper + thead. Append pages: bare tbodies into #results-table. #}
-{% if not is_append %}
-<table id="results-table" class="sections-table">
-  <thead>
-    <tr>
-      <th>Class #</th>
-      <th>Days &amp; Times</th>
-      <th>Instructor</th>
-      <th class="col-rmp">Rating</th>
-      <th class="col-mode">Mode</th>
-      <th class="col-dates">Dates</th>
-      <th>Status</th>
-      <th></th>
-      {% if show_add %}<th class="col-add"></th>{% endif %}
-    </tr>
-  </thead>
-{% endif %}
+{% if not is_append %}<div id="results-list">{% endif %}
 
 {% for course in courses %}
-<tbody class="course-group">
-  <tr class="course-header-row">
-    <td colspan="{{ col_count }}">{{ course.subject }} {{ course.course_number }} — {{ course.course_name }}</td>
-  </tr>
-  {% for entry in course.sections %}
-  {% set section = entry.section %}
-  {% set prof = entry.professor %}
-  <tr>
-    <td data-label="Class #">{{ section.class_number }}</td>
-    <td data-label="Days &amp; Times">{{ section.days_times or '—' }}</td>
-    <td data-label="Instructor">{{ section.instructor or 'TBA' }}</td>
-    <td data-label="Rating" class="col-rmp">
+{% for entry in course.sections %}
+{% set section = entry.section %}
+{% set prof = entry.professor %}
+<div class="section-card">
+  <div class="section-card-hdr">{{ section.subject }} {{ section.course_number }} — {{ course.course_name }}</div>
+  <div class="section-card-row">
+    <span class="sc-num">#{{ section.class_number }}</span>
+    <span class="sc-times">{{ section.days_times or '—' }}</span>
+    <span class="sc-instr">{{ section.instructor or 'TBA' }}</span>
+    <span class="sc-rmp">
       {% if prof and prof.match_status in ('matched', 'ambiguous') and prof.avg_rating %}
-        <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-link">
-          {{ "%.1f" | format(prof.avg_rating) }}<span class="rmp-count"> ({{ prof.num_ratings }})</span>
-        </a>
+        <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-link">{{ "%.1f" | format(prof.avg_rating) }}</a><span class="rmp-count"> ({{ prof.num_ratings }})</span>
         {% if prof.match_status == 'ambiguous' %}<span class="rmp-ambiguous" title="Multiple professors matched">~</span>{% endif %}
       {% else %}
         <span style="color:var(--text-muted)">—</span>
       {% endif %}
-    </td>
-    <td data-label="Mode" class="col-mode">{{ section.instruction_mode or '—' }}</td>
-    <td data-label="Dates" class="col-dates">{{ section.meeting_dates or '—' }}</td>
-    <td data-label="Status">
-      <span class="status-{{ section.status }}">
-        {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
-      </span>
-    </td>
-    <td data-label="" id="watch-btn-{{ section.class_number }}">
+    </span>
+    <span class="sc-status status-{{ section.status }}">
+      {{ 'WL' if section.status == 'waitlist' else section.status | title }}
+    </span>
+    <span id="watch-btn-{{ section.class_number }}" class="sc-watch">
       {% set is_watching = section.class_number in watching %}
       {% include "partials/watch_button.html" with context %}
-    </td>
-    {% if show_add %}
-    <td data-label="Schedule" class="col-add">
-      <button class="btn btn-add-schedule"
-              data-class-number="{{ section.class_number }}"
-              onclick="toggleSchedule(this, {{ section.class_number }})">Add</button>
-    </td>
-    {% endif %}
-  </tr>
-  {% endfor %}
-</tbody>
+    </span>
+  </div>
+</div>
+{% endfor %}
 {% endfor %}
 
-{% if not is_append %}
-</table>
-{% endif %}
+{% if not is_append %}</div>{% endif %}
 
 {% elif not is_append %}
-  <p style="color:#666; padding: 0.5rem 0;">No sections match your filters.</p>
+  <div id="results-list"><p style="color:var(--text-muted); padding: 0.5rem 0;">No sections match your filters.</p></div>
 {% endif %}
 
-{# Show-more button — always OOB so it stays outside the results container.
-   Targets #results-table directly so appended tbodies land inside the table. #}
+{# Show-more button — always OOB so it stays outside the results container. #}
 {% if is_htmx %}
-{% set search_url = '/schedule/search' if show_add else '/sections/partial' %}
 <div id="show-more-container" hx-swap-oob="true">
   {% if has_more %}
   <button class="btn btn-show-more"
-          hx-get="{{ search_url }}?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
-          hx-target="#results-table"
+          hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
+          hx-target="#results-list"
           hx-swap="beforeend">Show more</button>
   {% endif %}
 </div>

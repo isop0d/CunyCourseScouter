@@ -1,0 +1,7 @@
+{# Main response: grid content (swapped into #schedule-grid) #}
+{% include "partials/schedule_grid.html" %}
+
+{# OOB: update the class list sidebar #}
+<div id="schedule-list" hx-swap-oob="innerHTML">
+{% include "partials/schedule_list.html" %}
+</div>

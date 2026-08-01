@@ -482,8 +482,6 @@ async def schedule_page(request: Request, db: Session = Depends(get_session)):
         "student": student,
         "watching": _watched_classes(student),
         "saved_ids_json": json.dumps(saved_ids),
-        "subject_list": _subject_list(db),
-        "mode_options": MODES,
     })
 
 
@@ -494,7 +492,7 @@ async def schedule_grid_partial(
     db: Session = Depends(get_session),
 ):
     if not ids:
-        return templates.TemplateResponse(request, "partials/schedule_grid.html", {
+        return templates.TemplateResponse(request, "partials/schedule_panels.html", {
             "events": [],
             "unscheduled": [],
             "days": _DAY_NAMES[:5],
@@ -502,21 +500,42 @@ async def schedule_grid_partial(
             "grid_start": _GRID_START,
             "grid_span": _GRID_SPAN,
             "grid_height": _GRID_HEIGHT,
+            "class_list": [],
+            "color_map": {},
         })
 
-    sections = db.query(Section).filter(Section.class_number.in_(ids)).all()
+    section_map = {
+        s.class_number: s
+        for s in db.query(Section).filter(Section.class_number.in_(ids)).all()
+    }
     db_meetings = db.query(SectionMeeting).filter(SectionMeeting.section_id.in_(ids)).all()
 
     meetings_by_section: dict[int, list] = defaultdict(list)
     for m in db_meetings:
         meetings_by_section[m.section_id].append(m)
 
-    events, unscheduled = _compute_grid_events(sections, meetings_by_section)
+    # Build class_list in ids order (preserves insertion order from localStorage)
+    color_map: dict[int, int] = {}
+    class_list = []
+    for idx, cn in enumerate(ids):
+        s = section_map.get(cn)
+        if s:
+            cidx = idx % 8
+            color_map[cn] = cidx
+            class_list.append({"section": s, "color_idx": cidx, "prof": None})
+
+    # Fetch professor info for class list
+    all_sections = list(section_map.values())
+    prof_map, _ = _fetch_professor_map(db, all_sections)
+    for item in class_list:
+        item["prof"] = _attach_professor(item["section"], prof_map)
+
+    events, unscheduled = _compute_grid_events(all_sections, meetings_by_section)
 
     show_sat = any(e["day_of_week"] == 5 for e in events)
     days = _DAY_NAMES[:6] if show_sat else _DAY_NAMES[:5]
 
-    return templates.TemplateResponse(request, "partials/schedule_grid.html", {
+    return templates.TemplateResponse(request, "partials/schedule_panels.html", {
         "events": events,
         "unscheduled": unscheduled,
         "days": days,
@@ -524,6 +543,8 @@ async def schedule_grid_partial(
         "grid_start": _GRID_START,
         "grid_span": _GRID_SPAN,
         "grid_height": _GRID_HEIGHT,
+        "class_list": class_list,
+        "color_map": color_map,
     })
 
 
@@ -532,38 +553,20 @@ async def schedule_search(
     request: Request,
     background_tasks: BackgroundTasks,
     q: str = "",
-    subject: str = "",
-    status: str = "",
-    mode: str = "",
-    offset: int = 0,
     db: Session = Depends(get_session),
 ):
-    student = _current_student(request, db)
-    watching = _watched_classes(student)
+    if not q:
+        return HTMLResponse("")
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    filtered = _apply_filters(base_query, q, subject, status, mode)
-    total_count = filtered.count()
-    sections = filtered.offset(offset).limit(_PAGE_SIZE).all()
+    filtered = _apply_filters(base_query, q, "", "", "")
+    sections = filtered.limit(_PAGE_SIZE).all()
     prof_map, missing = _fetch_professor_map(db, sections)
     if missing:
         background_tasks.add_task(_rmp_fetch_bg, missing)
-    next_offset = offset + _PAGE_SIZE
-    has_more = next_offset < total_count
-    return templates.TemplateResponse(request, "partials/courses.html", {
+    return templates.TemplateResponse(request, "partials/schedule_search_results.html", {
         "courses": _group_into_courses(sections, prof_map),
-        "section_count": total_count,
-        "shown_count": offset + len(sections),
-        "watching": watching,
-        "student": student,
-        "show_add": True,
-        "has_more": has_more,
-        "next_offset": next_offset,
-        "is_append": offset > 0,
         "is_htmx": True,
         "q": q,
-        "selected_subject": subject,
-        "selected_status": status,
-        "selected_mode": mode,
     })
 
 

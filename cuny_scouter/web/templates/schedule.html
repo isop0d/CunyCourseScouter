@@ -4,69 +4,45 @@
 {% block content %}
 <div class="schedule-layout">
 
-  {# ── Schedule grid pane ── #}
-  <div class="schedule-pane">
-    <div class="sched-pane-header">
-      <h2>My Schedule</h2>
+  {# ── Left sidebar: class cards + search ── #}
+  <div class="schedule-sidebar">
+    <div class="sched-sidebar-header">
+      <h2>My Classes</h2>
       <div class="sched-actions">
         <button class="btn" onclick="saveSchedule()">Save</button>
         <span id="save-status" class="save-status"></span>
       </div>
     </div>
-    <div id="schedule-grid">
-      <p class="sched-empty">Add sections from the search panel to build your schedule.</p>
+
+    <div class="sched-search-area" id="sched-search-area">
+      <form id="schedule-filter-form">
+        <input
+          class="search-input"
+          type="search"
+          name="q"
+          placeholder="Search to add classes..."
+          autocomplete="off"
+          hx-get="/schedule/search"
+          hx-trigger="input changed delay:300ms, search"
+          hx-target="#schedule-search-results"
+          hx-include="#schedule-filter-form"
+          hx-swap="innerHTML"
+          onfocus="openSearch()"
+        >
+      </form>
+      <div id="schedule-search-results" class="sched-search-results"></div>
+    </div>
+
+    <div id="schedule-list">
+      <p class="sched-list-empty">Use the search above to add sections.</p>
     </div>
   </div>
 
-  {# ── Search pane ── #}
-  <div class="search-pane">
-    <form id="schedule-filter-form" class="filters">
-      <input
-        class="search-input"
-        type="search"
-        name="q"
-        placeholder="Search course, instructor, code..."
-        autocomplete="off"
-        hx-get="/schedule/search"
-        hx-trigger="input changed delay:300ms, search"
-        hx-target="#schedule-search-results"
-        hx-include="#schedule-filter-form"
-        hx-swap="innerHTML"
-        hx-indicator="#sched-loading"
-      >
-      <select class="filter-select" name="subject"
-        hx-get="/schedule/search" hx-trigger="change"
-        hx-target="#schedule-search-results" hx-include="#schedule-filter-form" hx-swap="innerHTML">
-        <option value="">All departments</option>
-        {% for code, label in subject_list %}
-        <option value="{{ code }}">{{ label }}</option>
-        {% endfor %}
-      </select>
-      <select class="filter-select" name="status"
-        hx-get="/schedule/search" hx-trigger="change"
-        hx-target="#schedule-search-results" hx-include="#schedule-filter-form" hx-swap="innerHTML">
-        <option value="">All statuses</option>
-        <option value="open">Open</option>
-        <option value="waitlist">Waitlist</option>
-        <option value="closed">Closed</option>
-      </select>
-      <select class="filter-select" name="mode"
-        hx-get="/schedule/search" hx-trigger="change"
-        hx-target="#schedule-search-results" hx-include="#schedule-filter-form" hx-swap="innerHTML">
-        <option value="">All modes</option>
-        {% for value, label in mode_options %}
-        <option value="{{ value }}">{{ label }}</option>
-        {% endfor %}
-      </select>
-      <span id="sched-loading" class="htmx-indicator">Loading...</span>
-    </form>
-
-    <div id="schedule-search-results">
-      <p style="color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0;">
-        Search for sections to add to your schedule.
-      </p>
+  {# ── Right pane: weekly grid ── #}
+  <div class="schedule-grid-pane">
+    <div id="schedule-grid">
+      <p class="sched-empty">Add sections from the search above to build your schedule.</p>
     </div>
-    <div id="show-more-container"></div>
   </div>
 
 </div>
@@ -104,6 +80,13 @@
     document.getElementById('save-status').textContent = '';
   }
 
+  function removeFromSchedule(cn) {
+    let schedule = getSchedule().filter(id => id !== cn);
+    setSchedule(schedule);
+    refreshGrid(schedule);
+    document.getElementById('save-status').textContent = '';
+  }
+
   function updateAddButton(btn, inSchedule) {
     btn.textContent = inSchedule ? 'Remove' : 'Add';
     btn.classList.toggle('btn-in-schedule', inSchedule);
@@ -119,6 +102,19 @@
       }
     });
   }
+
+  function openSearch() {
+    document.getElementById('sched-search-area').classList.add('is-open');
+  }
+
+  function closeSearch() {
+    document.getElementById('sched-search-area').classList.remove('is-open');
+  }
+
+  document.addEventListener('click', function(e) {
+    const area = document.getElementById('sched-search-area');
+    if (area && !area.contains(e.target)) closeSearch();
+  });
 
   async function saveSchedule() {
     const ids = getSchedule();
@@ -145,6 +141,7 @@
   document.addEventListener('htmx:afterSwap', function(e) {
     if (e.detail.target && e.detail.target.id === 'schedule-search-results') {
       initScheduleButtons();
+      if (e.detail.target.children.length > 0) openSearch();
     }
   });
 </script>

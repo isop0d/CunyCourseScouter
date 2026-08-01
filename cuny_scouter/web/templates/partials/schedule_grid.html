@@ -1,5 +1,5 @@
 {% if not events and not unscheduled %}
-<p class="sched-empty">Add sections from the search panel to build your schedule.</p>
+<p class="sched-empty">Add sections from the search above to build your schedule.</p>
 {% else %}
 
 {# Dynamic column template: 48px time label + equal day columns #}
@@ -37,11 +37,10 @@
 
       {# Events for this day #}
       {% for event in events if event.day_of_week == day_idx %}
-      <div class="sched-event {% if event.is_conflict %}sched-conflict{% endif %}"
+      {% set cidx = color_map.get(event.section.class_number, 0) %}
+      <div class="sched-event sched-color-{{ cidx }}{% if event.is_conflict %} sched-conflict{% endif %}"
            style="top:{{ event.top_pct }}%; height:{{ event.height_pct }}%; left:{{ event.left_pct }}%; width:{{ event.width_pct }}%;">
-        <div class="sched-event-code">
-          {{ event.section.subject }} {{ event.section.course_number }}-{{ event.section.section_code }}
-        </div>
+        <div class="sched-event-code">{{ event.section.subject }} {{ event.section.course_number }}</div>
         {% if event.section.room %}<div class="sched-event-room">{{ event.section.room }}</div>{% endif %}
         {% if event.section.instructor %}<div class="sched-event-instr">{{ event.section.instructor }}</div>{% endif %}
         {% if event.is_conflict %}<div class="sched-conflict-warn">! Conflict</div>{% endif %}
@@ -60,7 +59,8 @@
   <div class="sched-unscheduled-label">Unscheduled (Online / TBA)</div>
   <div class="sched-unscheduled-items">
     {% for section in unscheduled %}
-    <div class="sched-unscheduled-item">
+    {% set cidx = color_map.get(section.class_number, 0) %}
+    <div class="sched-unscheduled-item sched-color-{{ cidx }}" style="border-left: 3px solid var(--cc, var(--border));">
       <span>{{ section.subject }} {{ section.course_number }}-{{ section.section_code }}</span>
       <span class="status-{{ section.status }}">{{ section.status | title }}</span>
       <button class="btn btn-in-schedule"

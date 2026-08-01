@@ -147,25 +147,12 @@
     .htmx-indicator { display: none; }
     .htmx-request .htmx-indicator { display: inline; color: var(--text-muted); font-size: 0.8rem; }
 
-    /* ── Course groups (unified table, one tbody per course) ── */
-    .sections-table { margin-bottom: 1rem; }
-    .course-header-row td {
-      font-weight: 600;
-      font-size: 0.85rem;
-      padding: 1.1rem 0.5rem 0.25rem;
-      border-left: 3px solid var(--border-strong);
-      background: var(--bg-stripe) !important;
-      color: var(--text);
-      border-bottom: 1px solid var(--border);
-    }
-    .course-group:first-child .course-header-row td { padding-top: 0.4rem; }
-
-    /* ── Table ── */
-    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    /* ── Table (schedule grid helper tables only) ── */
+    table { width: 100%; border-collapse: separate; border-spacing: 0 2px; font-size: 0.82rem; }
     th {
       text-align: left;
       padding: 0.35rem 0.5rem;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid var(--border);
       font-weight: 600;
       color: var(--text-head);
       font-size: 0.75rem;
@@ -175,13 +162,14 @@
     }
     td {
       padding: 0.4rem 0.5rem;
+      border-top: 1px solid var(--border);
       border-bottom: 1px solid var(--border);
       vertical-align: middle;
       background: var(--bg-alt);
     }
-    tbody tr:nth-child(even) td { background: var(--bg-stripe); }
+    td:first-child { border-left: 1px solid var(--border); border-radius: 4px 0 0 4px; }
+    td:last-child  { border-right: 1px solid var(--border); border-radius: 0 4px 4px 0; }
     tbody tr:hover td { background: var(--btn-hover); }
-    tr:last-child td { border-bottom: none; }
 
     /* ── Status ── */
     .status-open     { color: #16a34a; font-weight: 600; }
@@ -198,28 +186,177 @@
     #show-more-container { padding: 0.75rem 0; text-align: center; }
     .btn-show-more { font-size: 0.82rem; padding: 0.35rem 1.25rem; }
 
+    /* ── Section cards (index / section browser) ── */
+    #results-list { display: flex; flex-direction: column; gap: 0.3rem; }
+    .section-card { }
+    .section-card-hdr {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-head);
+      background: var(--bg-stripe);
+      padding: 0.22rem 0.65rem;
+    }
+    .section-card-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.3rem 0.65rem;
+      background: var(--bg-alt);
+      min-width: 0;
+    }
+    .sc-num   { font-size: 0.74rem; color: var(--text-muted); flex-shrink: 0; }
+    .sc-times { font-size: 0.78rem; flex: 2 1 0; min-width: 0;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-instr { font-size: 0.76rem; color: var(--text-muted); flex: 2 1 0; min-width: 0;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sc-rmp   { font-size: 0.74rem; flex-shrink: 0; }
+    .sc-rmp .rmp-link  { font-size: 0.74rem; }
+    .sc-rmp .rmp-count { font-size: 0.7rem; }
+    .sc-status { font-size: 0.74rem; flex-shrink: 0; }
+    .sc-watch  { flex-shrink: 0; }
+
     /* ── Schedule builder ── */
+
+    /* Muted accent color per class — left-border only */
+    .sched-color-0 { --cc: #5a8ab0; }
+    .sched-color-1 { --cc: #7a65a8; }
+    .sched-color-2 { --cc: #9a8530; }
+    .sched-color-3 { --cc: #a85050; }
+    .sched-color-4 { --cc: #4a9060; }
+    .sched-color-5 { --cc: #a07038; }
+    .sched-color-6 { --cc: #a04878; }
+    .sched-color-7 { --cc: #3a9888; }
+    html.dark .sched-color-0 { --cc: #6898c0; }
+    html.dark .sched-color-1 { --cc: #8878b8; }
+    html.dark .sched-color-2 { --cc: #b09840; }
+    html.dark .sched-color-3 { --cc: #b86060; }
+    html.dark .sched-color-4 { --cc: #58a870; }
+    html.dark .sched-color-5 { --cc: #b08848; }
+    html.dark .sched-color-6 { --cc: #b05888; }
+    html.dark .sched-color-7 { --cc: #48a898; }
+
     .schedule-layout {
       display: grid;
-      grid-template-columns: 3fr 2fr;
-      gap: 1.5rem;
+      grid-template-columns: 35fr 65fr;
+      gap: 1.25rem;
       align-items: start;
     }
-    .schedule-pane { min-width: 0; }
-    .search-pane   { min-width: 0; }
 
-    /* Search pane: stack filters full-width */
-    .search-pane .filters { flex-direction: column; }
-    .search-pane .search-input,
-    .search-pane .filter-select { width: 100%; }
+    /* ── Left sidebar: search + class cards ── */
+    .schedule-sidebar { min-width: 0; position: relative; }
 
-    /* Hide low-value columns in the narrow search pane */
-    .search-pane .col-mode,
-    .search-pane .col-dates,
-    .search-pane .col-rmp { display: none; }
+    .sched-sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .sched-sidebar-header h2 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 0; }
 
-    /* Cap search results height so grid and results scroll independently */
-    #schedule-search-results { max-height: 65vh; overflow-y: auto; }
+    .sched-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .save-status   { font-size: 0.8rem; color: var(--text-muted); }
+
+    .sched-search-area { position: relative; margin-bottom: 0.75rem; }
+    .sched-search-area .search-input { width: 100%; box-sizing: border-box; }
+
+    .sched-search-results {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 380px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+    }
+    .sched-search-area.is-open .sched-search-results { display: block; }
+
+    .sched-result-group { border-bottom: 1px solid var(--border); }
+    .sched-result-group:last-child { border-bottom: none; }
+    .sched-result-hdr {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-head);
+      background: var(--bg-stripe);
+      padding: 0.22rem 0.6rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sched-result-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.6rem;
+      min-width: 0;
+    }
+    .sched-result-times {
+      font-size: 0.74rem;
+      flex: 2 1 0;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sched-result-instr {
+      font-size: 0.72rem;
+      flex: 1.5 1 0;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text-muted);
+    }
+    .sched-result-status { font-size: 0.7rem; flex-shrink: 0; font-weight: 600; }
+    .sched-result-row .btn { font-size: 0.7rem; padding: 0.18rem 0.45rem; flex-shrink: 0; }
+    .sched-result-empty { padding: 0.65rem 0.6rem; color: var(--text-muted); font-size: 0.82rem; }
+
+    #schedule-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .sched-list-empty { color: var(--text-muted); font-size: 0.83rem; padding: 0.35rem 0; margin: 0; }
+
+    .sched-class-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cc, var(--border));
+      border-radius: 4px;
+      padding: 0.5rem 0.6rem;
+      color: var(--text);
+    }
+    .sched-card-body { flex: 1; min-width: 0; }
+    .sched-card-code { font-weight: 700; font-size: 0.82rem; }
+    .sched-card-name { font-size: 0.76rem; margin-top: 0.1rem; color: var(--text-muted);
+                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-card-detail { font-size: 0.72rem; margin-top: 0.08rem; color: var(--text-muted);
+                         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-card-detail .rmp-link { color: inherit; text-decoration: none; }
+    .sched-card-detail .rmp-link:hover { text-decoration: underline; }
+    .sched-card-status { font-size: 0.7rem; margin-top: 0.15rem; font-weight: 600; }
+
+    .sched-card-remove {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      line-height: 1;
+      padding: 0.05rem 0.15rem;
+      opacity: 0.72;
+      transition: opacity 0.15s;
+    }
+    .sched-card-remove:hover { opacity: 1; }
+
+    /* ── Right pane: grid ── */
+    .schedule-grid-pane { min-width: 0; }
 
     .sched-pane-header {
       display: flex;
@@ -228,9 +365,6 @@
       margin-bottom: 0.75rem;
     }
     .sched-pane-header h2 { font-size: 0.95rem; font-weight: 600; color: var(--text); }
-
-    .sched-actions { display: flex; align-items: center; gap: 0.75rem; }
-    .save-status   { font-size: 0.8rem; color: var(--text-muted); }
 
     /* Outer wrapper: time-label col + day cols */
     .sched-wrapper {
@@ -291,16 +425,20 @@
 
     .sched-event {
       position: absolute;
-      border: 1px solid var(--border-strong);
       background: var(--bg-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cc, var(--border-strong));
       overflow: hidden;
       font-size: 0.68rem;
       padding: 0.2rem 0.3rem;
       line-height: 1.3;
       box-sizing: border-box;
+      border-radius: 2px;
     }
     .sched-event.sched-conflict {
       border-color: #d97706;
+      border-left-color: #d97706;
     }
     .sched-event-code  { font-weight: 600; color: var(--text); }
     .sched-event-room  { color: var(--text-muted); }
@@ -347,11 +485,7 @@
 
     @media (max-width: 900px) {
       .schedule-layout { grid-template-columns: 1fr; }
-      /* On mobile, search pane filters go back to wrapping row */
-      .search-pane .filters { flex-direction: row; flex-wrap: wrap; }
-      .search-pane .search-input,
-      .search-pane .filter-select { width: auto; }
-      #schedule-search-results { max-height: none; }
+      .sched-search-area .search-input { width: 100%; }
     }
 
     @media (max-width: 640px) {
@@ -381,6 +515,8 @@
         border-bottom: 1px solid var(--border);
         background: var(--bg) !important;
       }
+      td:first-child { border-left: none; border-radius: 0; }
+      td:last-child  { border-right: none; border-radius: 0; }
       tr:last-child td { border-bottom: 1px solid var(--border); }
       td:last-child { border-bottom: none; }
       td::before {

@@ -1,0 +1,20 @@
+{% for item in class_list %}
+<div class="sched-class-card sched-color-{{ item.color_idx }}" id="sched-card-{{ item.section.class_number }}">
+  <div class="sched-card-body">
+    <div class="sched-card-code">{{ item.section.subject }} {{ item.section.course_number }}</div>
+    <div class="sched-card-name">{{ item.section.course_name }}</div>
+    <div class="sched-card-detail">
+      {{ item.section.instructor or 'TBA' }}
+      {%- if item.prof and item.prof.avg_rating and item.prof.match_status in ('matched', 'ambiguous') %}
+       · <a href="{{ item.prof.rmp_url }}" target="_blank" class="rmp-link">{{ "%.1f"|format(item.prof.avg_rating) }}</a>
+      {%- endif %}
+    </div>
+    <span class="sched-card-status status-{{ item.section.status }}">
+      {{ 'Wait List' if item.section.status == 'waitlist' else item.section.status | title }}
+    </span>
+  </div>
+  <button class="sched-card-remove" onclick="removeFromSchedule({{ item.section.class_number }})" title="Remove">&#x2715;</button>
+</div>
+{% else %}
+<p class="sched-list-empty">Use the search above to add sections to your schedule.</p>
+{% endfor %}
