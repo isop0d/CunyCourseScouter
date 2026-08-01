@@ -1,12 +1,23 @@
 services:
+  caddy:
+    image: caddy:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: cuny_scouter
       POSTGRES_USER: scouter
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-scouter}
-    ports:
-      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -29,8 +40,6 @@ services:
   web:
     build: .
     command: uvicorn cuny_scouter.web:app --host 0.0.0.0 --port 8000
-    ports:
-      - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://scouter:${POSTGRES_PASSWORD:-scouter}@db:5432/cuny_scouter
     env_file: [.env]
@@ -52,3 +61,5 @@ services:
 
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

@@ -5,5 +5,5 @@ from cuny_scouter.config import settings
 from cuny_scouter.web.routes import router
 
 app = FastAPI(title="CUNY Course Scouter")
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, https_only=True)
 app.include_router(router)

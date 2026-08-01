@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # Discord OAuth
     discord_client_id: str = ""
     discord_client_secret: str = ""
-    discord_redirect_uri: str = "http://localhost:8000/auth/discord/callback"
+    discord_redirect_uri: str = "https://cunycoursescouter.duckdns.org/auth/discord/callback"
     discord_bot_token: str = ""
     discord_guild_id: str = ""
 
