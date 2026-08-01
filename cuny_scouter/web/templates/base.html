@@ -196,8 +196,8 @@
   <script>
     (function () {
       const stored = localStorage.getItem('theme');
-      if (stored === 'dark') document.documentElement.classList.add('dark');
-      else if (stored === 'light') document.documentElement.classList.add('light');
+      if (stored === 'light') document.documentElement.classList.add('light');
+      else document.documentElement.classList.add('dark');
     })();
   </script>
 </head>
