@@ -10,17 +10,17 @@
 
     /* ── Theme tokens ── */
     :root {
-      --bg:        #ffffff;
-      --bg-alt:    #f7f7f7;
-      --bg-stripe: #f2f2f2;
-      --border:    #ddd;
-      --border-strong: #111;
-      --text:      #111;
-      --text-muted:#666;
-      --text-head: #444;
-      --btn-bg:    #ffffff;
-      --btn-hover: #f0f0f0;
-      --input-bg:  #ffffff;
+      --bg:            #eff2f7;   /* gray page canvas */
+      --bg-alt:        #ffffff;   /* white — cards, header, table cells */
+      --bg-stripe:     #f0f4fb;   /* light blue-gray even-row tint */
+      --border:        #dce0ea;   /* blue-tinted gray border */
+      --border-strong: #5383e8;   /* op.gg blue accent */
+      --text:          #202232;
+      --text-muted:    #7b8ab8;
+      --text-head:     #4a5070;
+      --btn-bg:        #ffffff;
+      --btn-hover:     #eef1f8;   /* light blue hover */
+      --input-bg:      #ffffff;
     }
 
     html.dark {
@@ -68,7 +68,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: var(--bg);
+      background: var(--bg-alt);
     }
 
     header .logo { font-weight: 700; font-size: 1rem; color: var(--text); text-decoration: none; }
@@ -154,7 +154,7 @@
       font-size: 0.85rem;
       padding: 1.1rem 0.5rem 0.25rem;
       border-left: 3px solid var(--border-strong);
-      background: var(--bg-alt) !important;
+      background: var(--bg-stripe) !important;
       color: var(--text);
       border-bottom: 1px solid var(--border);
     }
@@ -171,16 +171,16 @@
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      background: var(--bg);
+      background: var(--bg-alt);
     }
     td {
       padding: 0.4rem 0.5rem;
       border-bottom: 1px solid var(--border);
       vertical-align: middle;
-      background: var(--bg);
+      background: var(--bg-alt);
     }
     tbody tr:nth-child(even) td { background: var(--bg-stripe); }
-    tbody tr:hover td { background: var(--bg-alt); }
+    tbody tr:hover td { background: var(--btn-hover); }
     tr:last-child td { border-bottom: none; }
 
     /* ── Status ── */
@@ -407,7 +407,7 @@
         border: none;
         border-left: 3px solid var(--border-strong);
         padding: 0.6rem 0.75rem 0.25rem;
-        background: var(--bg-alt) !important;
+        background: var(--bg-stripe) !important;
       }
       .course-header-row td::before { display: none; }
 
