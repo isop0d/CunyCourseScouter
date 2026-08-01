@@ -155,6 +155,65 @@ def fetch_subject_html(subject_code: str, subject_name: str, career: str = "UGRD
     return html
 
 
+def fetch_class_html(class_number: int) -> str:
+    """
+    Fetch the section page for a single class number.
+    Uses the class_nbr field on CUNY's search form to bypass subject-level scraping.
+    Raises ScraperNoResultsError if the class is not found.
+    """
+    headers = {"User-Agent": settings.scraper_user_agent}
+    session = requests.Session()
+    _step0_and_step1(session)
+
+    resp = session.post(
+        f"{BASE}/CFSearchToolController",
+        headers=headers,
+        timeout=30,
+        data={
+            "selectedSubjectName": "",
+            "subject_name": "",
+            "selectedCCareerName": "",
+            "courseCareer": "",
+            "selectedCAttrName": "",
+            "courseAttr": "",
+            "selectedCAttrVName": "",
+            "courseAttValue": "",
+            "selectedReqDName": "",
+            "reqDesignation": "",
+            "open_class": "",
+            "class_nbr": str(class_number),
+            "selectedSessionName": "",
+            "class_session": "",
+            "selectedModeInsName": "",
+            "meetingStart": "LT",
+            "selectedMeetingStartName": "less than",
+            "meetingStartText": "",
+            "AndMeetingStartText": "",
+            "meetingEnd": "LE",
+            "selectedMeetingEndName": "less than or equal to",
+            "meetingEndText": "",
+            "AndMeetingEndText": "",
+            "daysOfWeek": "I",
+            "selectedDaysOfWeekName": "include only these days",
+            "instructor": "B",
+            "selectedInstructorName": "begins with",
+            "instructorName": "",
+            "search_btn_search": "Search",
+        },
+    )
+
+    if resp.status_code != 200:
+        raise ScraperError(f"Search POST returned HTTP {resp.status_code}")
+
+    resp.encoding = "ISO-8859-1"
+    html = resp.text
+
+    if "The search returns no results" in html or "classfound_msg" not in html:
+        raise ScraperNoResultsError(f"Class {class_number}: not found")
+
+    return html
+
+
 def fetch_all_subjects(
     delay_seconds: float = 1.5,
 ) -> list[tuple[tuple[str, str], str]]:

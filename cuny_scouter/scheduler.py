@@ -23,6 +23,7 @@ from cuny_scouter.diff import compute_diff
 from cuny_scouter.notifier import dispatch_notifications
 from cuny_scouter.scraper.client import (
     fetch_all_subjects,
+    fetch_class_html,
     fetch_subject_html,
     fetch_subjects,
     ScraperError,
@@ -126,29 +127,77 @@ def _fetch_and_upsert_key(db, run: ScrapeRun, fetch_key: str, fetch_name: str, d
     return all_records, had_error
 
 
-def _get_watched_fetch_keys(db) -> list[tuple[str, str]]:
-    """
-    Return [(fetch_key, fetch_name), ...] for subjects that have at least one
-    active watch. Uses the fetch_key stored on sections rows.
-    Falls back to fetch_subjects() for the display name.
-    """
+def _get_watched_class_numbers(db) -> list[tuple[int, str]]:
+    """Return [(class_number, current_status), ...] for all actively watched sections."""
     rows = db.execute(text(
-        "SELECT DISTINCT s.fetch_key "
-        "FROM sections s "
-        "JOIN watches w ON s.class_number = w.class_number "
-        "WHERE w.active = TRUE AND s.fetch_key IS NOT NULL"
+        "SELECT w.class_number, s.status "
+        "FROM watches w "
+        "JOIN sections s ON s.class_number = w.class_number "
+        "WHERE w.active = TRUE"
     )).fetchall()
+    return [(row[0], row[1]) for row in rows]
 
-    if not rows:
-        return []
 
-    keys_needed = {row[0] for row in rows}
+def _run_fast_poll(watched: list[tuple[int, str]]) -> None:
+    """Fetch each watched class individually, upsert status, diff, notify."""
+    db = get_session()
+    run = ScrapeRun(
+        institution=settings.institution,
+        term_code=settings.term_code,
+        subject="FAST",
+        status="running",
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
 
-    # Get display names from CUNY (one session, cheap)
-    all_subjects = fetch_subjects()
-    name_map = {code: name for code, name in all_subjects}
+    all_records = []
+    failed = []
+    now = datetime.now(timezone.utc)
 
-    return [(key, name_map.get(key, key)) for key in keys_needed]
+    for i, (class_number, _) in enumerate(watched):
+        if i > 0:
+            time.sleep(1.0)
+        try:
+            html = fetch_class_html(class_number)
+            records = parse_sections(html, term_code=settings.term_code, institution=settings.institution, subject="")
+            for r in records:
+                if r.class_number == class_number:
+                    db.execute(text(
+                        "UPDATE sections SET status=:s, updated_at=:t, last_seen_run=:r WHERE class_number=:cn"
+                    ), {"s": r.status, "t": now, "r": run.id, "cn": class_number})
+                    db.execute(text(
+                        "INSERT INTO section_snapshots (run_id, class_number, status, scraped_at) "
+                        "VALUES (:r, :cn, :s, :t)"
+                    ), {"r": run.id, "cn": class_number, "s": r.status, "t": now})
+                    all_records.append(r)
+                    log.info(f"  Class {class_number}: {r.status}")
+        except ScraperNoResultsError:
+            log.warning(f"  Class {class_number}: not found on CUNY search")
+        except Exception as exc:
+            db.rollback()
+            log.warning(f"  Class {class_number}: failed — {exc}")
+            failed.append(class_number)
+
+    db.commit()
+    run.sections_found = len(all_records)
+    run.status = "ok" if not failed else "partial"
+    run.finished_at = now
+    db.commit()
+
+    log.info(f"FAST poll complete. classes={len(watched)}, checked={len(all_records)}, failed={len(failed)}")
+
+    prev_snapshots = list(watched)
+    if all_records:
+        events = compute_diff(all_records, prev_snapshots, run.id)
+        if events:
+            log.info(f"Detected {len(events)} status change(s).")
+            sent = dispatch_notifications(db, events, settings.discord_webhook_url)
+            log.info(f"Sent {sent} notification(s).")
+        else:
+            log.info("No status changes detected.")
+
+    db.close()
 
 
 def _run_poll(label: str, subject_pairs: list[tuple[str, str]], delay: float = 1.5) -> None:
@@ -221,10 +270,10 @@ def _run_poll(label: str, subject_pairs: list[tuple[str, str]], delay: float = 1
 
 
 def poll_fast() -> bool:
-    """Poll only subjects with active watches. Returns False if nothing to watch."""
+    """Poll only the specific watched classes. Returns False if nothing to watch."""
     db = get_session()
     try:
-        watched = _get_watched_fetch_keys(db)
+        watched = _get_watched_class_numbers(db)
     finally:
         db.close()
 
@@ -232,8 +281,8 @@ def poll_fast() -> bool:
         log.info("Fast poll: no active watches, skipping.")
         return False
 
-    log.info(f"Fast poll: {len(watched)} subject(s) with active watches — {[k for k, _ in watched]}")
-    _run_poll("FAST", watched, delay=1.0)
+    log.info(f"Fast poll: {len(watched)} class(es) — {[cn for cn, _ in watched]}")
+    _run_fast_poll(watched)
     return True
 
 
