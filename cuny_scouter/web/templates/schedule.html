@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Schedule Builder — CUNY Course Scouter{% endblock %}
+
+{% block content %}
+<div class="schedule-layout">
+
+  {# ── Schedule grid pane ── #}
+  <div class="schedule-pane">
+    <div class="sched-pane-header">
+      <h2>My Schedule</h2>
+      <div class="sched-actions">
+        <button class="btn" onclick="saveSchedule()">Save</button>
+        <span id="save-status" class="save-status"></span>
+      </div>
+    </div>
+    <div id="schedule-grid">
+      <p class="sched-empty">Add sections from the search panel to build your schedule.</p>
+    </div>
+  </div>
+
+  {# ── Search pane ── #}
+  <div class="search-pane">
+    <form id="schedule-filter-form" class="filters">
+      <input
+        class="search-input"
+        type="search"
+        name="q"
+        placeholder="Search course, instructor, code..."
+        autocomplete="off"
+        hx-get="/schedule/search"
+        hx-trigger="input changed delay:300ms, search"
+        hx-target="#schedule-search-results"
+        hx-include="#schedule-filter-form"
+        hx-swap="innerHTML"
+        hx-indicator="#sched-loading"
+      >
+      <select class="filter-select" name="subject"
+        hx-get="/schedule/search" hx-trigger="change"
+        hx-target="#schedule-search-results" hx-include="#schedule-filter-form" hx-swap="innerHTML">
+        <option value="">All departments</option>
+        {% for code, label in subject_list %}
+        <option value="{{ code }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select class="filter-select" name="status"
+        hx-get="/schedule/search" hx-trigger="change"
+        hx-target="#schedule-search-results" hx-include="#schedule-filter-form" hx-swap="innerHTML">
+        <option value="">All statuses</option>
+        <option value="open">Open</option>
+        <option value="waitlist">Waitlist</option>
+        <option value="closed">Closed</option>
+      </select>
+      <select class="filter-select" name="mode"
+        hx-get="/schedule/search" hx-trigger="change"
+        hx-target="#schedule-search-results" hx-include="#schedule-filter-form" hx-swap="innerHTML">
+        <option value="">All modes</option>
+        {% for value, label in mode_options %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+      <span id="sched-loading" class="htmx-indicator">Loading...</span>
+    </form>
+
+    <div id="schedule-search-results">
+      <p style="color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0;">
+        Search for sections to add to your schedule.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const _savedIds = {{ saved_ids_json | safe }};
+
+  function getSchedule() {
+    return JSON.parse(localStorage.getItem('schedule') || '[]');
+  }
+
+  function setSchedule(ids) {
+    localStorage.setItem('schedule', JSON.stringify(ids));
+  }
+
+  function refreshGrid(ids) {
+    const params = ids.length ? ids.map(id => 'ids=' + encodeURIComponent(id)).join('&') : '';
+    htmx.ajax('GET', '/schedule/grid' + (params ? '?' + params : ''), {
+      target: '#schedule-grid',
+      swap: 'innerHTML'
+    });
+  }
+
+  function toggleSchedule(btn, cn) {
+    let schedule = getSchedule();
+    const inSchedule = schedule.includes(cn);
+    if (inSchedule) {
+      schedule = schedule.filter(id => id !== cn);
+    } else {
+      schedule.push(cn);
+    }
+    setSchedule(schedule);
+    updateAddButton(btn, !inSchedule);
+    refreshGrid(schedule);
+    document.getElementById('save-status').textContent = '';
+  }
+
+  function updateAddButton(btn, inSchedule) {
+    btn.textContent = inSchedule ? 'Remove' : 'Add';
+    btn.classList.toggle('btn-in-schedule', inSchedule);
+    btn.classList.toggle('btn-add-schedule', !inSchedule);
+  }
+
+  function initScheduleButtons() {
+    const schedule = getSchedule();
+    document.querySelectorAll('.btn-add-schedule, .btn-in-schedule').forEach(btn => {
+      if (btn.dataset.classNumber) {
+        const cn = parseInt(btn.dataset.classNumber);
+        updateAddButton(btn, schedule.includes(cn));
+      }
+    });
+  }
+
+  async function saveSchedule() {
+    const ids = getSchedule();
+    const statusEl = document.getElementById('save-status');
+    statusEl.textContent = 'Saving…';
+    const fd = new FormData();
+    ids.forEach(id => fd.append('ids', id));
+    const resp = await fetch('/schedule/save', { method: 'POST', body: fd });
+    statusEl.innerHTML = await resp.text();
+  }
+
+  // Seed localStorage from saved DB entries if local is empty
+  if (!localStorage.getItem('schedule') && _savedIds.length > 0) {
+    setSchedule(_savedIds);
+  }
+
+  // Initial grid load
+  const _initSchedule = getSchedule();
+  if (_initSchedule.length > 0) {
+    refreshGrid(_initSchedule);
+  }
+
+  // Re-init Add buttons after HTMX swaps search results
+  document.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target && e.detail.target.id === 'schedule-search-results') {
+      initScheduleButtons();
+    }
+  });
+</script>
+{% endblock %}

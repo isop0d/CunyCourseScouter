@@ -20,6 +20,7 @@
           <th class="col-dates">Dates</th>
           <th>Status</th>
           <th></th>
+          {% if show_add %}<th class="col-add"></th>{% endif %}
         </tr>
       </thead>
       <tbody>
@@ -39,6 +40,13 @@
             {% set is_watching = section.class_number in watching %}
             {% include "partials/watch_button.html" with context %}
           </td>
+          {% if show_add %}
+          <td data-label="Schedule" class="col-add">
+            <button class="btn btn-add-schedule"
+                    data-class-number="{{ section.class_number }}"
+                    onclick="toggleSchedule(this, {{ section.class_number }})">Add</button>
+          </td>
+          {% endif %}
         </tr>
         {% endfor %}
       </tbody>

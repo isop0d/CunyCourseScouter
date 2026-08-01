@@ -187,6 +187,144 @@
     .status-closed   { color: #dc2626; }
     .status-waitlist { color: #d97706; font-weight: 600; }
 
+    /* ── Schedule builder ── */
+    .schedule-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    .schedule-pane { min-width: 0; }
+    .search-pane   { min-width: 0; }
+
+    .sched-pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .sched-pane-header h2 { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+
+    .sched-actions { display: flex; align-items: center; gap: 0.75rem; }
+    .save-status   { font-size: 0.8rem; color: var(--text-muted); }
+
+    /* Outer wrapper: time-label col + day cols */
+    .sched-wrapper {
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .sched-head-row {
+      display: grid;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-alt);
+    }
+    .sched-corner {
+      border-right: 1px solid var(--border);
+      padding: 0.3rem;
+    }
+    .sched-day-header {
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-head);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.3rem 0;
+      border-right: 1px solid var(--border);
+    }
+    .sched-day-header:last-child { border-right: none; }
+
+    .sched-body-row {
+      display: grid;
+      position: relative;
+    }
+    .sched-time-col {
+      position: relative;
+      border-right: 1px solid var(--border);
+    }
+    .sched-hour-label {
+      position: absolute;
+      right: 4px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      transform: translateY(-50%);
+      white-space: nowrap;
+    }
+
+    .sched-day-col {
+      position: relative;
+      border-right: 1px solid var(--border);
+    }
+    .sched-day-col:last-child { border-right: none; }
+
+    .sched-hour-line {
+      position: absolute;
+      left: 0; right: 0;
+      border-top: 1px solid var(--border);
+      pointer-events: none;
+    }
+
+    .sched-event {
+      position: absolute;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-alt);
+      overflow: hidden;
+      font-size: 0.68rem;
+      padding: 0.2rem 0.3rem;
+      line-height: 1.3;
+      box-sizing: border-box;
+    }
+    .sched-event.sched-conflict {
+      border-color: #d97706;
+    }
+    .sched-event-code  { font-weight: 600; color: var(--text); }
+    .sched-event-room  { color: var(--text-muted); }
+    .sched-event-instr { color: var(--text-muted); }
+    .sched-conflict-warn { color: #d97706; font-size: 0.62rem; margin-top: 0.1rem; }
+
+    .sched-empty {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      padding: 2rem 0;
+      text-align: center;
+    }
+
+    /* Unscheduled strip */
+    .sched-unscheduled {
+      border: 1px solid var(--border);
+      border-top: none;
+      padding: 0.5rem;
+    }
+    .sched-unscheduled-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.4rem;
+    }
+    .sched-unscheduled-items { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .sched-unscheduled-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.5rem;
+      font-size: 0.78rem;
+      background: var(--bg);
+    }
+
+    /* Add-to-schedule button */
+    .btn-add-schedule  { background: var(--btn-bg); color: var(--text); border-color: var(--border); }
+    .btn-add-schedule:hover { background: var(--btn-hover); }
+    .btn-in-schedule { background: var(--border-strong); color: var(--bg); border-color: var(--border-strong); }
+    .btn-in-schedule:hover { opacity: 0.8; }
+
+    @media (max-width: 900px) {
+      .schedule-layout { grid-template-columns: 1fr; }
+    }
+
     @media (max-width: 640px) {
       .search-input { width: 100%; }
       .filters { flex-direction: column; align-items: stretch; }
@@ -244,6 +382,7 @@
   <header>
     <a href="/" class="logo">CUNY Course Scouter</a>
     <nav>
+      <a href="/schedule">Schedule</a>
       {% if student %}
         <a href="/me">My Watches</a>
         <span class="username">{{ student.discord_username }}</span>
