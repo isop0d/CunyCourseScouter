@@ -1,5 +1,5 @@
-{# OOB-swap result-meta only on initial HTMX loads (not appends) #}
-{% if not is_append %}
+{# OOB-swap result-meta only on HTMX partial requests, not on full-page includes #}
+{% if is_htmx and not is_append %}
 <div id="result-meta" hx-swap-oob="innerHTML">
   {% if section_count == 0 %}
     No sections found
