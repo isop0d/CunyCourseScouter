@@ -331,10 +331,11 @@ async def logout(request: Request):
 # ── Schedule builder ─────────────────────────────────────────────────────────
 
 _GRID_START = 7 * 60    # 7:00 AM in minutes
-_GRID_END = 22 * 60     # 10:00 PM in minutes
-_GRID_SPAN = _GRID_END - _GRID_START
+_GRID_END = 21 * 60     # 9:00 PM in minutes
+_GRID_SPAN = _GRID_END - _GRID_START   # 840 minutes
+_GRID_HEIGHT = 600      # px — decoupled from span so 1px != 1min
 _DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-_HOUR_LABELS = list(range(7, 22))  # 7am..9pm labels
+_HOUR_LABELS = list(range(7, 21))  # 7am..8pm labels; 9pm is the bottom edge
 
 
 def _assign_lanes_for_day(day_meetings: list) -> list[dict]:
@@ -446,6 +447,7 @@ async def schedule_grid_partial(
             "hour_labels": _HOUR_LABELS,
             "grid_start": _GRID_START,
             "grid_span": _GRID_SPAN,
+            "grid_height": _GRID_HEIGHT,
         })
 
     sections = db.query(Section).filter(Section.class_number.in_(ids)).all()
@@ -467,6 +469,7 @@ async def schedule_grid_partial(
         "hour_labels": _HOUR_LABELS,
         "grid_start": _GRID_START,
         "grid_span": _GRID_SPAN,
+        "grid_height": _GRID_HEIGHT,
     })
 
 

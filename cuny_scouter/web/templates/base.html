@@ -200,12 +200,25 @@
     /* ── Schedule builder ── */
     .schedule-layout {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 3fr 2fr;
       gap: 1.5rem;
       align-items: start;
     }
     .schedule-pane { min-width: 0; }
     .search-pane   { min-width: 0; }
+
+    /* Search pane: stack filters full-width */
+    .search-pane .filters { flex-direction: column; }
+    .search-pane .search-input,
+    .search-pane .filter-select { width: 100%; }
+
+    /* Hide low-value columns in the narrow search pane */
+    .search-pane .col-mode,
+    .search-pane .col-dates,
+    .search-pane .col-rmp { display: none; }
+
+    /* Cap search results height so grid and results scroll independently */
+    #schedule-search-results { max-height: 65vh; overflow-y: auto; }
 
     .sched-pane-header {
       display: flex;
@@ -333,6 +346,11 @@
 
     @media (max-width: 900px) {
       .schedule-layout { grid-template-columns: 1fr; }
+      /* On mobile, search pane filters go back to wrapping row */
+      .search-pane .filters { flex-direction: row; flex-wrap: wrap; }
+      .search-pane .search-input,
+      .search-pane .filter-select { width: auto; }
+      #schedule-search-results { max-height: none; }
     }
 
     @media (max-width: 640px) {
