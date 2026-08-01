@@ -17,6 +17,8 @@ dependencies = [
     "python-multipart",
     "pydantic-settings",
     "httpx",
+    "psycopg2-binary",
+    "itsdangerous",
 ]
 
 [project.optional-dependencies]

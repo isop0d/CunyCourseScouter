@@ -55,6 +55,7 @@ class Section(Base):
     meeting_dates: Mapped[str] = mapped_column(String(300), default="")
     course_topic: Mapped[str] = mapped_column(String(200), default="")
     status: Mapped[str] = mapped_column(String(20))
+    fetch_key: Mapped[str | None] = mapped_column(String(10), nullable=True)
     last_seen_run: Mapped[int | None] = mapped_column(Integer, ForeignKey("scrape_runs.id"), nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(default=_now)
     updated_at: Mapped[datetime] = mapped_column(default=_now, onupdate=_now)

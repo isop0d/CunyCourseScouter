@@ -15,5 +15,40 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    build: .
+    command: alembic upgrade head
+    environment:
+      - DATABASE_URL=postgresql://scouter:${POSTGRES_PASSWORD:-scouter}@db:5432/cuny_scouter
+    env_file: [.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build: .
+    command: uvicorn cuny_scouter.web:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://scouter:${POSTGRES_PASSWORD:-scouter}@db:5432/cuny_scouter
+    env_file: [.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: python -m cuny_scouter.scheduler
+    environment:
+      - DATABASE_URL=postgresql://scouter:${POSTGRES_PASSWORD:-scouter}@db:5432/cuny_scouter
+    env_file: [.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:

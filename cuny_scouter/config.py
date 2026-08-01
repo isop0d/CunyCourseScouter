@@ -15,7 +15,8 @@ class Settings(BaseSettings):
     discord_redirect_uri: str = "http://localhost:8000/auth/discord/callback"
 
     # Scraper
-    poll_interval_seconds: int = 600
+    fast_poll_interval_seconds: int = 120
+    full_poll_interval_seconds: int = 3600
     institution: str = "BAR01"
     institution_name: str = "Baruch College | "
     term_code: str = "1269"
