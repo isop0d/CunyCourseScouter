@@ -10,8 +10,9 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from cuny_scouter.db.models import ScheduleEntry, Section, SectionMeeting, ScrapeRun, Student, Watch
+from cuny_scouter.db.models import Professor, ScheduleEntry, Section, SectionMeeting, ScrapeRun, Student, Watch
 from cuny_scouter.db.session import get_session
+from cuny_scouter.professors import normalize_instructor
 from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user, join_guild
 
 _ET = ZoneInfo("America/New_York")
@@ -73,7 +74,31 @@ def _apply_filters(query, q: str, subject: str, status: str, mode: str):
     return query
 
 
-def _group_into_courses(sections) -> list[dict]:
+_PAGE_SIZE = 25
+
+
+def _fetch_professor_map(db: Session, sections) -> dict[str, "Professor | None"]:
+    """Return a map of normalized_name -> Professor for a list of sections."""
+    keys = set()
+    for s in sections:
+        if s.instructor:
+            key, _, _ = normalize_instructor(s.instructor)
+            if key:
+                keys.add(key)
+    if not keys:
+        return {}
+    profs = db.query(Professor).filter(Professor.normalized_name.in_(keys)).all()
+    return {p.normalized_name: p for p in profs}
+
+
+def _attach_professor(section, prof_map: dict) -> "Professor | None":
+    if not section.instructor:
+        return None
+    key, _, _ = normalize_instructor(section.instructor)
+    return prof_map.get(key)
+
+
+def _group_into_courses(sections, prof_map: dict | None = None) -> list[dict]:
     courses: dict[tuple, dict] = {}
     for s in sections:
         key = (s.subject, s.course_number)
@@ -84,7 +109,8 @@ def _group_into_courses(sections) -> list[dict]:
                 "course_name": s.course_name,
                 "sections": [],
             }
-        courses[key]["sections"].append(s)
+        entry = {"section": s, "professor": _attach_professor(s, prof_map) if prof_map is not None else None}
+        courses[key]["sections"].append(entry)
     return list(courses.values())
 
 
@@ -112,7 +138,10 @@ async def index(
     watching = _watched_classes(student)
 
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    sections = _apply_filters(base_query, q, subject, status, mode).all()
+    filtered = _apply_filters(base_query, q, subject, status, mode)
+    total_count = filtered.count()
+    sections = filtered.limit(_PAGE_SIZE).all()
+    prof_map = _fetch_professor_map(db, sections)
 
     last_run = (
         db.query(ScrapeRun)
@@ -121,9 +150,16 @@ async def index(
         .first()
     )
 
+    next_offset = _PAGE_SIZE
+    has_more = next_offset < total_count
+
     return templates.TemplateResponse(request, "index.html", {
-        "courses": _group_into_courses(sections),
-        "section_count": len(sections),
+        "courses": _group_into_courses(sections, prof_map),
+        "section_count": total_count,
+        "shown_count": len(sections),
+        "has_more": has_more,
+        "next_offset": next_offset,
+        "is_append": False,
         "subject_list": _subject_list(db),
         "mode_options": MODES,
         "q": q,
@@ -143,19 +179,34 @@ async def sections_partial(
     subject: str = "",
     status: str = "",
     mode: str = "",
+    offset: int = 0,
     db: Session = Depends(get_session),
 ):
     student = _current_student(request, db)
     watching = _watched_classes(student)
 
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    sections = _apply_filters(base_query, q, subject, status, mode).all()
+    filtered = _apply_filters(base_query, q, subject, status, mode)
+    total_count = filtered.count()
+    sections = filtered.offset(offset).limit(_PAGE_SIZE).all()
+    prof_map = _fetch_professor_map(db, sections)
+
+    next_offset = offset + _PAGE_SIZE
+    has_more = next_offset < total_count
 
     return templates.TemplateResponse(request, "partials/courses.html", {
-        "courses": _group_into_courses(sections),
-        "section_count": len(sections),
+        "courses": _group_into_courses(sections, prof_map),
+        "section_count": total_count,
+        "shown_count": offset + len(sections),
         "watching": watching,
         "student": student,
+        "has_more": has_more,
+        "next_offset": next_offset,
+        "is_append": offset > 0,
+        "q": q,
+        "selected_subject": subject,
+        "selected_status": status,
+        "selected_mode": mode,
     })
 
 
@@ -425,18 +476,32 @@ async def schedule_search(
     subject: str = "",
     status: str = "",
     mode: str = "",
+    offset: int = 0,
     db: Session = Depends(get_session),
 ):
     student = _current_student(request, db)
     watching = _watched_classes(student)
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    sections = _apply_filters(base_query, q, subject, status, mode).all()
+    filtered = _apply_filters(base_query, q, subject, status, mode)
+    total_count = filtered.count()
+    sections = filtered.offset(offset).limit(_PAGE_SIZE).all()
+    prof_map = _fetch_professor_map(db, sections)
+    next_offset = offset + _PAGE_SIZE
+    has_more = next_offset < total_count
     return templates.TemplateResponse(request, "partials/courses.html", {
-        "courses": _group_into_courses(sections),
-        "section_count": len(sections),
+        "courses": _group_into_courses(sections, prof_map),
+        "section_count": total_count,
+        "shown_count": offset + len(sections),
         "watching": watching,
         "student": student,
         "show_add": True,
+        "has_more": has_more,
+        "next_offset": next_offset,
+        "is_append": offset > 0,
+        "q": q,
+        "selected_subject": subject,
+        "selected_status": status,
+        "selected_mode": mode,
     })
 
 

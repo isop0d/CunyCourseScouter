@@ -1,10 +1,13 @@
+{# OOB-swap result-meta only on initial HTMX loads (not appends) #}
+{% if not is_append %}
 <div id="result-meta" hx-swap-oob="innerHTML">
   {% if section_count == 0 %}
     No sections found
   {% else %}
-    {{ section_count }} section{{ 's' if section_count != 1 else '' }} across {{ courses|length }} course{{ 's' if courses|length != 1 else '' }}
+    Showing {{ shown_count }} of {{ section_count }} section{{ 's' if section_count != 1 else '' }}
   {% endif %}
 </div>
+{% endif %}
 
 {% if courses %}
   {% for course in courses %}
@@ -16,6 +19,7 @@
           <th>Class #</th>
           <th>Days &amp; Times</th>
           <th>Instructor</th>
+          <th class="col-rmp">Rating</th>
           <th class="col-mode">Mode</th>
           <th class="col-dates">Dates</th>
           <th>Status</th>
@@ -24,11 +28,23 @@
         </tr>
       </thead>
       <tbody>
-        {% for section in course.sections %}
+        {% for entry in course.sections %}
+        {% set section = entry.section %}
+        {% set prof = entry.professor %}
         <tr>
           <td data-label="Class #">{{ section.class_number }}</td>
           <td data-label="Days &amp; Times">{{ section.days_times or '—' }}</td>
           <td data-label="Instructor">{{ section.instructor or 'TBA' }}</td>
+          <td data-label="Rating" class="col-rmp">
+            {% if prof and prof.match_status in ('matched', 'ambiguous') and prof.avg_rating %}
+              <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-link">
+                {{ "%.1f" | format(prof.avg_rating) }}<span class="rmp-count"> ({{ prof.num_ratings }})</span>
+              </a>
+              {% if prof.match_status == 'ambiguous' %}<span class="rmp-ambiguous" title="Multiple professors matched">~</span>{% endif %}
+            {% else %}
+              <span style="color:var(--text-muted)">—</span>
+            {% endif %}
+          </td>
           <td data-label="Mode" class="col-mode">{{ section.instruction_mode or '—' }}</td>
           <td data-label="Dates" class="col-dates">{{ section.meeting_dates or '—' }}</td>
           <td data-label="Status">
@@ -53,6 +69,28 @@
     </table>
   </div>
   {% endfor %}
-{% else %}
+{% elif not is_append %}
   <p style="color:#666; padding: 0.5rem 0;">No sections match your filters.</p>
+{% endif %}
+
+{# Show-more button — OOB swap when appending, normal render on first load #}
+{% set search_url = '/schedule/search' if show_add else '/sections/partial' %}
+{% if is_append %}
+<div id="show-more-container" hx-swap-oob="true">
+  {% if has_more %}
+  <button class="btn btn-show-more"
+          hx-get="{{ search_url }}?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
+          hx-target="#sections-container"
+          hx-swap="beforeend">Show more</button>
+  {% endif %}
+</div>
+{% else %}
+<div id="show-more-container">
+  {% if has_more %}
+  <button class="btn btn-show-more"
+          hx-get="{{ search_url }}?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
+          hx-target="#sections-container"
+          hx-swap="beforeend">Show more</button>
+  {% endif %}
+</div>
 {% endif %}

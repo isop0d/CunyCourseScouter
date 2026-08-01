@@ -187,6 +187,16 @@
     .status-closed   { color: #dc2626; }
     .status-waitlist { color: #d97706; font-weight: 600; }
 
+    /* ── RMP rating column ── */
+    .rmp-link  { color: var(--text); text-decoration: none; font-size: 0.82rem; }
+    .rmp-link:hover { text-decoration: underline; }
+    .rmp-count { color: var(--text-muted); font-size: 0.75rem; }
+    .rmp-ambiguous { color: var(--text-muted); font-size: 0.72rem; margin-left: 0.2rem; }
+
+    /* ── Show more ── */
+    #show-more-container { padding: 0.75rem 0; text-align: center; }
+    .btn-show-more { font-size: 0.82rem; padding: 0.35rem 1.25rem; }
+
     /* ── Schedule builder ── */
     .schedule-layout {
       display: grid;
@@ -367,7 +377,7 @@
       td[data-label=""] { justify-content: flex-end; }
       td[data-label=""]::before { display: none; }
 
-      .col-mode, .col-dates, .col-section { display: none; }
+      .col-mode, .col-dates, .col-section, .col-rmp { display: none; }
     }
   </style>
   <script>
