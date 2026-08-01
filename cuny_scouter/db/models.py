@@ -3,10 +3,12 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Float,
     ForeignKey,
     Index,
     Integer,
     JSON,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -128,3 +130,46 @@ class Notification(Base):
     __table_args__ = (
         UniqueConstraint("watch_id", "from_status", "to_status", name="uq_notifications_dedup"),
     )
+
+
+class SectionMeeting(Base):
+    __tablename__ = "section_meetings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    section_id: Mapped[int] = mapped_column(Integer, ForeignKey("sections.class_number", ondelete="CASCADE"))
+    day_of_week: Mapped[int] = mapped_column(SmallInteger)   # 0=Mon .. 6=Sun
+    start_minute: Mapped[int] = mapped_column(Integer)       # minutes since midnight
+    end_minute: Mapped[int] = mapped_column(Integer)
+
+    __table_args__ = (
+        Index("idx_meetings_section", "section_id"),
+    )
+
+
+class ScheduleEntry(Base):
+    __tablename__ = "schedule_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"))
+    section_id: Mapped[int] = mapped_column(Integer, ForeignKey("sections.class_number"))
+    added_at: Mapped[datetime] = mapped_column(default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("student_id", "section_id"),
+    )
+
+
+class Professor(Base):
+    __tablename__ = "professors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    normalized_name: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    rmp_legacy_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    avg_rating: Mapped[float | None] = mapped_column(Float, nullable=True)
+    avg_difficulty: Mapped[float | None] = mapped_column(Float, nullable=True)
+    num_ratings: Mapped[int] = mapped_column(Integer, default=0)
+    would_take_again: Mapped[float | None] = mapped_column(Float, nullable=True)
+    match_status: Mapped[str] = mapped_column(String(20))   # matched|ambiguous|no_match|staff
+    rmp_url: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(nullable=True)
