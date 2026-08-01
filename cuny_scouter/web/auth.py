@@ -19,7 +19,7 @@ def discord_authorize_url() -> str:
         f"client_id={settings.discord_client_id}"
         f"&redirect_uri={settings.discord_redirect_uri}"
         f"&response_type=code"
-        f"&scope=identify"
+        f"&scope=identify%20guilds.join"
     )
     return f"{AUTHORIZE_URL}?{params}"
 
@@ -51,3 +51,15 @@ async def fetch_discord_user(access_token: str) -> dict:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+async def join_guild(user_id: str, access_token: str) -> None:
+    """Add the user to the configured Discord server using the bot token."""
+    if not settings.discord_bot_token or not settings.discord_guild_id:
+        return
+    async with httpx.AsyncClient() as client:
+        await client.put(
+            f"{DISCORD_API}/guilds/{settings.discord_guild_id}/members/{user_id}",
+            headers={"Authorization": f"Bot {settings.discord_bot_token}"},
+            json={"access_token": access_token},
+        )

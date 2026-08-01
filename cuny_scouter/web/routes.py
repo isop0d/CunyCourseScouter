@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from cuny_scouter.db.models import Section, ScrapeRun, Student, Watch
 from cuny_scouter.db.session import get_session
-from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user
+from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user, join_guild
 
 _ET = ZoneInfo("America/New_York")
 
@@ -243,7 +243,9 @@ async def auth_discord():
 async def auth_discord_callback(code: str, request: Request, db: Session = Depends(get_session)):
     try:
         token_data = await exchange_code(code)
-        user_data = await fetch_discord_user(token_data["access_token"])
+        access_token = token_data["access_token"]
+        user_data = await fetch_discord_user(access_token)
+        await join_guild(user_data["id"], access_token)
     except Exception:
         raise HTTPException(status_code=400, detail="Discord authentication failed.")
 

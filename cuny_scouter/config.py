@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     discord_client_id: str = ""
     discord_client_secret: str = ""
     discord_redirect_uri: str = "http://localhost:8000/auth/discord/callback"
+    discord_bot_token: str = ""
+    discord_guild_id: str = ""
 
     # Scraper
     fast_poll_interval_seconds: int = 120
