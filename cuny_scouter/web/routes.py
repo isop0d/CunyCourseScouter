@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from cuny_scouter.config import settings
 from cuny_scouter.db.models import Professor, ScheduleEntry, Section, SectionMeeting, ScrapeRun, Student, Watch
-from cuny_scouter.db.session import get_session
+from cuny_scouter.db.session import get_session, SessionLocal
 from cuny_scouter.professors import match_rmp, normalize_instructor
 from cuny_scouter.rmp import search_teacher
 from cuny_scouter.web.auth import discord_authorize_url, exchange_code, fetch_discord_user, join_guild
@@ -109,7 +109,7 @@ def _rmp_fetch_bg(missing: list[tuple[str, str, str]]) -> None:
     """Background task: fetch RMP for professors not yet in DB after the response is sent."""
     if not missing:
         return
-    db = get_session()
+    db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
         for key, last, initial in missing:
