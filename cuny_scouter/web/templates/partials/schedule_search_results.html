@@ -1,22 +1,16 @@
 {% for course in courses %}
 {% for entry in course.sections %}
 {% set section = entry.section %}
-<div class="sched-result-group">
-  <div class="sched-result-hdr">{{ section.subject }} {{ section.course_number }} — {{ course.course_name }}</div>
-  <div class="sched-result-row">
-    <span class="sched-result-times">{{ section.days_times or 'TBA' }}</span>
-    <span class="sched-result-instr">{{ section.instructor or 'TBA' }}</span>
-    <span class="sched-result-status status-{{ section.status }}">
-      {{ 'WL' if section.status == 'waitlist' else section.status | title }}
-    </span>
-    <button class="btn btn-add-schedule"
-            data-class-number="{{ section.class_number }}"
-            onclick="toggleSchedule(this, {{ section.class_number }})">Add</button>
+<div class="sched-dropdown-item" onclick="toggleSchedule(null, {{ section.class_number }})">
+  <div style="min-width:0;">
+    <div class="sched-dropdown-label">{{ section.subject }} {{ section.course_number }} — {{ course.course_name }}</div>
+    <div class="sched-dropdown-sub">{{ section.days_times or 'TBA' }} · {{ section.instructor or 'TBA' }}</div>
   </div>
+  <span class="sched-dropdown-add">Add</span>
 </div>
 {% endfor %}
 {% else %}
 {% if is_htmx %}
-<p class="sched-result-empty">No results. Try different keywords.</p>
+<div class="sched-dropdown-empty">No results. Try different keywords.</div>
 {% endif %}
 {% endfor %}

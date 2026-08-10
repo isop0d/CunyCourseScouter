@@ -4,11 +4,11 @@
 {% block content %}
 <div class="schedule-layout">
 
-  {# ── Left sidebar: class cards + search ── #}
+  {# ── Left sidebar ── #}
   <div class="schedule-sidebar">
     <div class="sched-sidebar-header">
       <h2>My Classes</h2>
-      <div class="sched-actions">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
         <button class="btn" onclick="saveSchedule()">Save</button>
         <span id="save-status" class="save-status"></span>
       </div>
@@ -17,10 +17,10 @@
     <div class="sched-search-area" id="sched-search-area">
       <form id="schedule-filter-form">
         <input
-          class="search-input"
+          class="sched-search-input"
           type="search"
           name="q"
-          placeholder="Search to add classes..."
+          placeholder="Search to add classes…"
           autocomplete="off"
           hx-get="/schedule/search"
           hx-trigger="input changed delay:300ms, search"
@@ -34,15 +34,13 @@
     </div>
 
     <div id="schedule-list">
-      <p class="sched-list-empty">Use the search above to add sections.</p>
+      <div class="sched-empty-placeholder">Use the search above to add sections.</div>
     </div>
   </div>
 
   {# ── Right pane: weekly grid ── #}
-  <div class="schedule-grid-pane">
-    <div id="schedule-grid">
-      <p class="sched-empty">Add sections from the search above to build your schedule.</p>
-    </div>
+  <div class="schedule-grid-pane" id="schedule-grid">
+    <div class="sched-empty">Add sections from the search to build your schedule.</div>
   </div>
 
 </div>
@@ -78,6 +76,9 @@
     updateAddButton(btn, !inSchedule);
     refreshGrid(schedule);
     document.getElementById('save-status').textContent = '';
+    closeSearch();
+    document.querySelector('.sched-search-input').value = '';
+    htmx.ajax('GET', '/schedule/search', { target: '#schedule-search-results', swap: 'innerHTML' });
   }
 
   function removeFromSchedule(cn) {
@@ -88,19 +89,8 @@
   }
 
   function updateAddButton(btn, inSchedule) {
+    if (!btn) return;
     btn.textContent = inSchedule ? 'Remove' : 'Add';
-    btn.classList.toggle('btn-in-schedule', inSchedule);
-    btn.classList.toggle('btn-add-schedule', !inSchedule);
-  }
-
-  function initScheduleButtons() {
-    const schedule = getSchedule();
-    document.querySelectorAll('.btn-add-schedule, .btn-in-schedule').forEach(btn => {
-      if (btn.dataset.classNumber) {
-        const cn = parseInt(btn.dataset.classNumber);
-        updateAddButton(btn, schedule.includes(cn));
-      }
-    });
   }
 
   function openSearch() {
@@ -126,22 +116,21 @@
     statusEl.innerHTML = await resp.text();
   }
 
-  // Seed localStorage from saved DB entries if local is empty
   if (!localStorage.getItem('schedule') && _savedIds.length > 0) {
     setSchedule(_savedIds);
   }
 
-  // Initial grid load
   const _initSchedule = getSchedule();
   if (_initSchedule.length > 0) {
     refreshGrid(_initSchedule);
   }
 
-  // Re-init Add buttons after HTMX swaps search results
   document.addEventListener('htmx:afterSwap', function(e) {
     if (e.detail.target && e.detail.target.id === 'schedule-search-results') {
-      initScheduleButtons();
-      if (e.detail.target.children.length > 0) openSearch();
+      const results = e.detail.target;
+      if (results.children.length > 0 && results.querySelector('.sched-dropdown-item')) {
+        openSearch();
+      }
     }
   });
 </script>

@@ -32,6 +32,8 @@ def _to_et(dt):
     return dt.astimezone(_ET)
 
 templates.env.filters["to_et"] = _to_et
+templates.env.globals["site_institution"] = settings.institution_name.rstrip(" |").strip()
+templates.env.globals["site_term"] = settings.term_name.replace("Term", "").strip()
 router = APIRouter()
 
 
@@ -61,11 +63,13 @@ MODES = [
 ]
 
 
-def _apply_filters(query, q: str, subject: str, status: str, mode: str):
+def _apply_filters(query, q: str, subject: str, status: str, mode: str, open_only: bool = False):
     if subject:
         query = query.filter(Section.subject == subject)
     if status:
         query = query.filter(Section.status == status)
+    elif open_only:
+        query = query.filter(Section.status == "open")
     if mode:
         query = query.filter(Section.instruction_mode == mode)
     if q:
@@ -181,13 +185,14 @@ async def index(
     subject: str = "",
     status: str = "",
     mode: str = "",
+    open_only: bool = False,
     db: Session = Depends(get_session),
 ):
     student = _current_student(request, db)
     watching = _watched_classes(student)
 
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    filtered = _apply_filters(base_query, q, subject, status, mode)
+    filtered = _apply_filters(base_query, q, subject, status, mode, open_only)
     total_count = filtered.count()
     sections = filtered.limit(_PAGE_SIZE).all()
     prof_map, missing = _fetch_professor_map(db, sections)
@@ -217,6 +222,7 @@ async def index(
         "selected_subject": subject,
         "selected_status": status,
         "selected_mode": mode,
+        "open_only": open_only,
         "watching": watching,
         "student": student,
         "last_run": last_run,
@@ -231,6 +237,7 @@ async def sections_partial(
     subject: str = "",
     status: str = "",
     mode: str = "",
+    open_only: bool = False,
     offset: int = 0,
     db: Session = Depends(get_session),
 ):
@@ -238,7 +245,7 @@ async def sections_partial(
     watching = _watched_classes(student)
 
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
-    filtered = _apply_filters(base_query, q, subject, status, mode)
+    filtered = _apply_filters(base_query, q, subject, status, mode, open_only)
     total_count = filtered.count()
     sections = filtered.offset(offset).limit(_PAGE_SIZE).all()
     prof_map, missing = _fetch_professor_map(db, sections)
@@ -262,6 +269,7 @@ async def sections_partial(
         "selected_subject": subject,
         "selected_status": status,
         "selected_mode": mode,
+        "open_only": open_only,
     })
 
 
@@ -380,6 +388,12 @@ async def auth_discord_callback(code: str, request: Request, db: Session = Depen
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/")
+
+
+@router.get("/faq", response_class=HTMLResponse)
+async def faq(request: Request, db: Session = Depends(get_session)):
+    student = _current_student(request, db)
+    return templates.TemplateResponse(request, "faq.html", {"student": student})
 
 
 # ── Schedule builder ─────────────────────────────────────────────────────────
@@ -529,7 +543,7 @@ async def schedule_grid_partial(
     for idx, cn in enumerate(ids):
         s = section_map.get(cn)
         if s:
-            cidx = idx % 8
+            cidx = idx % 6
             color_map[cn] = cidx
             class_list.append({"section": s, "color_idx": cidx, "prof": None})
 

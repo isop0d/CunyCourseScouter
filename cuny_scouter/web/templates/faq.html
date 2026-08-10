@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}FAQ — CUNY Course Scouter{% endblock %}
+
+{% block content %}
+<div class="faq-wrap">
+  <div class="faq-heading">Frequently asked questions</div>
+  <div class="faq-sub">Quick answers about search, statuses, and ratings.</div>
+
+  <div class="faq-list">
+
+    <div class="faq-item open">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">What do the Open, Waitlist, and Closed statuses mean?</span>
+        <span class="faq-toggle">−</span>
+      </div>
+      <div class="faq-answer">Open means seats are available to register now. Waitlist means the section is full but you can join a queue for a seat. Closed means no seats or waitlist spots remain.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">How often is seat availability updated?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Section status and seat counts refresh periodically throughout the day, pulled directly from the registrar's system. Open seats can fill quickly — refresh the page if you're planning to register.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Where do the RMP ratings come from?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Ratings are pulled from Rate My Professors and shown as an average score with the number of reviews in parentheses. A dash means no rating is on file for that instructor.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">How is the rating color determined?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Green (≥ 4.2) indicates a strong average, amber (3.3–4.19) a mixed one, and red (&lt; 3.3) a low one. Colors are intentionally muted so they're easy to scan without feeling alarming.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Can I save a schedule across visits?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes — sections you add on the Schedule page are kept in your browser's local storage automatically. Login with Discord and click Save to sync them to your account so they persist across devices.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">Does the search look at instructor names too?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Yes, the search box matches against course code, course title, and instructor name all at once. Try typing a last name to find all sections taught by that instructor.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        <span class="faq-q-text">What does the Watch feature do?</span>
+        <span class="faq-toggle">+</span>
+      </div>
+      <div class="faq-answer">Watching a section sends you a Discord notification when its status changes — for example when a closed section opens up or when a waitlisted section gets a seat. Login with Discord to enable watching.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function toggleFaq(questionEl) {
+    var item = questionEl.parentElement;
+    var toggle = questionEl.querySelector('.faq-toggle');
+    var isOpen = item.classList.contains('open');
+    item.classList.toggle('open', !isOpen);
+    toggle.textContent = isOpen ? '+' : '−';
+  }
+</script>
+{% endblock %}

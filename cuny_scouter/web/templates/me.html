@@ -2,49 +2,50 @@
 {% block title %}My Watches — CUNY Course Scouter{% endblock %}
 
 {% block content %}
-<h2 style="margin-bottom:1rem;">Watching as {{ student.discord_username }}</h2>
+<div class="page-heading">Watching as {{ student.discord_username }}</div>
 
 {% if watches %}
-<div class="course-block">
-  <table>
-    <thead>
-      <tr>
-        <th>Class #</th>
-        <th>Course</th>
-        <th class="col-section">Section</th>
-        <th>Instructor</th>
-        <th>Status</th>
-        <th>Notify on</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for watch in watches %}
-      {% set section = sections.get(watch.class_number) %}
-      <tr>
-        <td data-label="Class #">{{ watch.class_number }}</td>
-        <td data-label="Course">{% if section %}{{ section.subject }} {{ section.course_number }} — {{ section.course_name }}{% else %}—{% endif %}</td>
-        <td data-label="Section" class="col-section">{% if section %}{{ section.section_code }}{% else %}—{% endif %}</td>
-        <td data-label="Instructor">{% if section %}{{ section.instructor or 'TBA' }}{% else %}—{% endif %}</td>
-        <td data-label="Status">
-          {% if section %}
-          <span class="status-{{ section.status }}">
-            {{ 'Wait List' if section.status == 'waitlist' else section.status | title }}
-          </span>
-          {% else %}—{% endif %}
-        </td>
-        <td data-label="Notify on">{{ watch.notify_on | title }}</td>
-        <td data-label="" id="watch-btn-{{ watch.class_number }}">
-          {% set is_watching = True %}
-          {% set section = sections.get(watch.class_number) %}
-          {% include "partials/watch_button.html" with context %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<div class="watches-table-wrap">
+  <div class="watches-table-scroll">
+    <table class="watches-table">
+      <thead>
+        <tr>
+          <th>Class #</th>
+          <th>Course</th>
+          <th>Instructor</th>
+          <th>Status</th>
+          <th>Notify on</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for watch in watches %}
+        {% set section = sections.get(watch.class_number) %}
+        <tr>
+          <td>{{ watch.class_number }}</td>
+          <td>{% if section %}{{ section.subject }} {{ section.course_number }} — {{ section.course_name }}{% else %}—{% endif %}</td>
+          <td>{% if section %}{{ section.instructor or 'TBA' }}{% else %}—{% endif %}</td>
+          <td class="status-{{ section.status if section else '' }}">
+            {% if section %}
+            <span class="status-badge">
+              <span class="status-dot"></span>
+              {{ 'Waitlist' if section.status == 'waitlist' else section.status | title }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:var(--textMuted);font-size:0.85rem;">{{ watch.notify_on | title }}</td>
+          <td id="watch-btn-{{ watch.class_number }}">
+            {% set is_watching = True %}
+            {% set section = sections.get(watch.class_number) %}
+            {% include "partials/watch_button.html" with context %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% else %}
-<p class="meta">You're not watching any sections yet. <a href="/">Browse sections</a></p>
+<p style="color:var(--textMuted);font-size:0.95rem;">You're not watching any sections yet. <a href="/" style="color:var(--accent);">Browse sections</a></p>
 {% endif %}
 {% endblock %}

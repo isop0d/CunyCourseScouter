@@ -5,11 +5,11 @@
 
 <form id="filter-form" class="filters">
   <input
-    class="search-input"
+    class="search-input filter-search"
     type="search"
     name="q"
     value="{{ q }}"
-    placeholder="Search course, instructor, code..."
+    placeholder="Search course, instructor, code…"
     autocomplete="off"
     hx-get="/sections/partial"
     hx-trigger="input changed delay:300ms, search"
@@ -46,7 +46,15 @@
     {% endfor %}
   </select>
 
-  <span id="loading" class="htmx-indicator">Loading...</span>
+  <label class="open-only-label">
+    <input type="checkbox" name="open_only" value="1"
+      {% if open_only %}checked{% endif %}
+      hx-get="/sections/partial" hx-trigger="change"
+      hx-target="#sections-container" hx-include="#filter-form" hx-swap="innerHTML">
+    Open only
+  </label>
+
+  <span id="loading" class="htmx-indicator">Loading…</span>
 </form>
 
 <div class="result-meta" id="result-meta">
@@ -58,16 +66,83 @@
   {% endif %}
 </div>
 
-<div id="sections-container">
-  {% include "partials/courses.html" with context %}
+<div class="results-table-wrap">
+  <div class="results-table-scroll">
+    <div class="results-header">
+      <div class="col-head sort-col" data-sort="class">Class <span class="sort-arrow"></span></div>
+      <div class="col-head sort-col" data-sort="days">Days / Times <span class="sort-arrow"></span></div>
+      <div class="col-head sort-col" data-sort="room">Room <span class="sort-arrow"></span></div>
+      <div class="col-head sort-col" data-sort="instructor">Instructor <span class="sort-arrow"></span></div>
+      <div class="col-head sort-col" data-sort="rating">RMP Rating <span class="sort-arrow"></span></div>
+      <div class="col-head sort-col" data-sort="mode">Mode <span class="sort-arrow"></span></div>
+      <div class="col-head sort-col" data-sort="status">Status <span class="sort-arrow"></span></div>
+      <div class="col-head col-head-static">Watch</div>
+    </div>
+    <div id="sections-container">
+      <div id="results-list">
+        {% include "partials/courses.html" with context %}
+      </div>
+    </div>
+  </div>
 </div>
+
 <div id="show-more-container">
   {% if has_more %}
-  <button class="btn btn-show-more"
-          hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
-          hx-target="#results-list"
-          hx-swap="beforeend">Show more</button>
+  <div class="show-more-wrap">
+    <button class="btn btn-show-more"
+            hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}&open_only={{ '1' if open_only else '' }}"
+            hx-target="#results-list"
+            hx-swap="beforeend">Show more</button>
+  </div>
   {% endif %}
 </div>
+
+<script>
+  let _sortKey = null, _sortDir = 1;
+
+  document.querySelectorAll('.sort-col').forEach(function(col) {
+    col.addEventListener('click', function() {
+      var key = this.dataset.sort;
+      if (_sortKey === key) _sortDir = -_sortDir;
+      else { _sortKey = key; _sortDir = 1; }
+      updateSortArrows();
+      sortRows();
+    });
+  });
+
+  function updateSortArrows() {
+    document.querySelectorAll('.sort-col').forEach(function(col) {
+      var arrow = col.querySelector('.sort-arrow');
+      if (!arrow) return;
+      arrow.textContent = col.dataset.sort === _sortKey ? (_sortDir === 1 ? '▲' : '▼') : '';
+    });
+  }
+
+  function sortRows() {
+    var list = document.getElementById('results-list');
+    if (!list) return;
+    var rows = Array.from(list.querySelectorAll('.result-row'));
+    rows.sort(function(a, b) {
+      var av = (a.dataset[_sortKey] || '').toLowerCase();
+      var bv = (b.dataset[_sortKey] || '').toLowerCase();
+      var an = parseFloat(av), bn = parseFloat(bv);
+      if (_sortKey === 'rating') {
+        if (av === '' && bv === '') return 0;
+        if (av === '') return 1;
+        if (bv === '') return -1;
+        return (an - bn) * _sortDir;
+      }
+      return av.localeCompare(bv) * _sortDir;
+    });
+    rows.forEach(function(r) { list.appendChild(r); });
+  }
+
+  document.addEventListener('htmx:afterSwap', function(e) {
+    var id = e.detail.target && e.detail.target.id;
+    if ((id === 'sections-container' || id === 'results-list') && _sortKey) {
+      sortRows();
+    }
+  });
+</script>
 
 {% endblock %}

@@ -1,72 +1,66 @@
 {% if not events and not unscheduled %}
-<p class="sched-empty">Add sections from the search above to build your schedule.</p>
+<div class="sched-empty">Add sections from the search to build your schedule.</div>
 {% else %}
 
-{# Dynamic column template: 48px time label + equal day columns #}
 {% set col_template = "48px " + " ".join(["1fr"] * days|length) %}
 
-<div class="sched-wrapper">
-  {# Header row: corner + day names #}
-  <div class="sched-head-row" style="display:grid; grid-template-columns: {{ col_template }};">
-    <div class="sched-corner"></div>
+<div class="sched-grid-overflow">
+  <div class="sched-grid-cols" style="grid-template-columns: {{ col_template }};">
+    {# Header row #}
+    <div class="sched-corner-cell"></div>
     {% for day in days %}
-    <div class="sched-day-header">{{ day }}</div>
+    <div class="sched-day-header-cell">{{ day }}</div>
     {% endfor %}
-  </div>
 
-  {# Body row: time labels + day columns #}
-  <div class="sched-body-row" style="display:grid; grid-template-columns: {{ col_template }}; height: {{ grid_height }}px;">
-    {# Time label column #}
-    <div class="sched-time-col" style="height: {{ grid_height }}px;">
-      {% for hour in hour_labels %}
-      {% set top_pct = ((hour * 60 - grid_start) / grid_span * 100) | round(2) %}
-      <div class="sched-hour-label" style="top: {{ top_pct }}%;">
-        {{ "%d%s" | format(hour if hour <= 12 else hour - 12, "am" if hour < 12 else "pm") }}
+    {# Body: time col + day cols #}
+    <div class="sched-body-grid" style="grid-column: 1 / -1; display: grid; grid-template-columns: {{ col_template }}; height: {{ grid_height }}px;">
+
+      {# Time labels #}
+      <div class="sched-time-col" style="height: {{ grid_height }}px;">
+        {% for hour in hour_labels %}
+        {% set top_pct = ((hour * 60 - grid_start) / grid_span * 100) | round(2) %}
+        <div class="sched-hour-label" style="top: {{ top_pct }}%;">
+          {{ "%d%s" | format(hour if hour <= 12 else hour - 12, "am" if hour < 12 else "pm") }}
+        </div>
+        {% endfor %}
+      </div>
+
+      {# Day columns #}
+      {% for day_idx in range(days|length) %}
+      <div class="sched-day-col" style="height: {{ grid_height }}px;">
+        {% for hour in hour_labels %}
+        {% set top_pct = ((hour * 60 - grid_start) / grid_span * 100) | round(2) %}
+        <div class="sched-hour-line" style="top: {{ top_pct }}%;"></div>
+        {% endfor %}
+
+        {% for event in events if event.day_of_week == day_idx %}
+        {% set cidx = color_map.get(event.section.class_number, 0) %}
+        <div class="sched-event sched-color-{{ cidx }}{% if event.is_conflict %} sched-conflict{% endif %}"
+             style="top:{{ event.top_pct }}%; height:{{ event.height_pct }}%; left:{{ event.left_pct }}%; width:{{ event.width_pct }}%;">
+          <div class="sched-event-code">{{ event.section.subject }} {{ event.section.course_number }}</div>
+          {% if event.section.room %}<div class="sched-event-room">{{ event.section.room }}</div>{% endif %}
+          <div class="sched-event-time">{{ event.start_time }}–{{ event.end_time }}</div>
+          {% if event.is_conflict %}<div class="sched-conflict-warn">Conflict</div>{% endif %}
+        </div>
+        {% endfor %}
       </div>
       {% endfor %}
-    </div>
 
-    {# Day columns #}
-    {% for day_idx in range(days|length) %}
-    <div class="sched-day-col" style="height: {{ grid_height }}px;">
-      {# Hour grid lines #}
-      {% for hour in hour_labels %}
-      {% set top_pct = ((hour * 60 - grid_start) / grid_span * 100) | round(2) %}
-      <div class="sched-hour-line" style="top: {{ top_pct }}%;"></div>
-      {% endfor %}
-
-      {# Events for this day #}
-      {% for event in events if event.day_of_week == day_idx %}
-      {% set cidx = color_map.get(event.section.class_number, 0) %}
-      <div class="sched-event sched-color-{{ cidx }}{% if event.is_conflict %} sched-conflict{% endif %}"
-           style="top:{{ event.top_pct }}%; height:{{ event.height_pct }}%; left:{{ event.left_pct }}%; width:{{ event.width_pct }}%;">
-        <div class="sched-event-code">{{ event.section.subject }} {{ event.section.course_number }}</div>
-        <div class="sched-event-time">{{ event.start_time }}–{{ event.end_time }}</div>
-        {% if event.section.room %}<div class="sched-event-room">{{ event.section.room }}</div>{% endif %}
-        {% if event.section.instructor %}<div class="sched-event-instr">{{ event.section.instructor }}</div>{% endif %}
-        {% if event.is_conflict %}<div class="sched-conflict-warn">! Conflict</div>{% endif %}
-      </div>
-      {% endfor %}
     </div>
-    {% endfor %}
   </div>
 </div>
 
 {% endif %}
 
-{# Unscheduled strip (async / TBA) #}
 {% if unscheduled %}
 <div class="sched-unscheduled">
   <div class="sched-unscheduled-label">Unscheduled (Online / TBA)</div>
   <div class="sched-unscheduled-items">
     {% for section in unscheduled %}
     {% set cidx = color_map.get(section.class_number, 0) %}
-    <div class="sched-unscheduled-item sched-color-{{ cidx }}" style="border-left: 3px solid var(--cc, var(--border));">
+    <div class="sched-unscheduled-item sched-color-{{ cidx }}">
       <span>{{ section.subject }} {{ section.course_number }}-{{ section.section_code }}</span>
-      <span class="status-{{ section.status }}">{{ section.status | title }}</span>
-      <button class="btn btn-in-schedule"
-              data-class-number="{{ section.class_number }}"
-              onclick="toggleSchedule(this, {{ section.class_number }})">Remove</button>
+      <button class="sched-unscheduled-remove" onclick="removeFromSchedule({{ section.class_number }})">✕</button>
     </div>
     {% endfor %}
   </div>

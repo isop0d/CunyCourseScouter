@@ -1,4 +1,4 @@
-{# OOB-swap result-meta only on HTMX partial requests, not on full-page includes #}
+{# OOB-swap result-meta only on HTMX partial requests #}
 {% if is_htmx and not is_append %}
 <div id="result-meta" hx-swap-oob="innerHTML">
   {% if section_count == 0 %}
@@ -17,28 +17,56 @@
 {% for entry in course.sections %}
 {% set section = entry.section %}
 {% set prof = entry.professor %}
-<div class="section-card">
-  <div class="section-card-hdr">{{ section.subject }} {{ section.course_number }} — {{ course.course_name }}</div>
-  <div class="section-card-row">
-    <span class="sc-num">#{{ section.class_number }}</span>
-    <span class="sc-times">{{ section.days_times or '—' }}</span>
-    <span class="sc-instr">{{ section.instructor or 'TBA' }}</span>
-    <span class="sc-rmp">
-      {% if prof and prof.match_status in ('matched', 'ambiguous') and prof.avg_rating %}
-        <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-link">{{ "%.1f" | format(prof.avg_rating) }}</a><span class="rmp-count"> ({{ prof.num_ratings }})</span>
-        {% if prof.match_status == 'ambiguous' %}<span class="rmp-ambiguous" title="Multiple professors matched">~</span>{% endif %}
+<div class="result-row status-{{ section.status }}"
+     data-class="{{ section.subject }} {{ section.course_number }}"
+     data-days="{{ section.days_times or '' }}"
+     data-room="{{ section.room or '' }}"
+     data-instructor="{{ section.instructor or '' }}"
+     data-rating="{{ '%.1f' | format(prof.avg_rating) if prof and prof.avg_rating and prof.match_status in ('matched', 'ambiguous') else '' }}"
+     data-mode="{{ section.instruction_mode or '' }}"
+     data-status="{{ section.status or '' }}">
+
+  <div class="cell cell-class">
+    <div class="class-code">{{ section.subject }} {{ section.course_number }}</div>
+    <div class="class-name" title="{{ section.course_name }}">{{ section.course_name }}</div>
+  </div>
+
+  <div class="cell cell-days" title="{{ section.days_times or '—' }}">{{ section.days_times or '—' }}</div>
+
+  <div class="cell cell-room">{{ section.room or '—' }}</div>
+
+  <div class="cell cell-instructor" title="{{ section.instructor or 'TBA' }}">{{ section.instructor or 'TBA' }}</div>
+
+  <div class="cell cell-rating">
+    {% if prof and prof.avg_rating and prof.match_status in ('matched', 'ambiguous') %}
+      {% set r = prof.avg_rating %}
+      {% if r >= 4.2 %}
+        <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-val rmp-high">{{ "%.1f" | format(r) }}</a>
+      {% elif r >= 3.3 %}
+        <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-val rmp-mid">{{ "%.1f" | format(r) }}</a>
       {% else %}
-        <span style="color:var(--text-muted)">—</span>
+        <a href="{{ prof.rmp_url }}" target="_blank" rel="noopener" class="rmp-val rmp-low">{{ "%.1f" | format(r) }}</a>
       {% endif %}
-    </span>
-    <span class="sc-status status-{{ section.status }}">
-      {{ 'WL' if section.status == 'waitlist' else section.status | title }}
-    </span>
-    <span id="watch-btn-{{ section.class_number }}" class="sc-watch">
-      {% set is_watching = section.class_number in watching %}
-      {% include "partials/watch_button.html" with context %}
+      <span class="rmp-count">({{ prof.num_ratings }})</span>
+    {% else %}
+      <span class="rmp-none">—</span>
+    {% endif %}
+  </div>
+
+  <div class="cell cell-mode">{{ section.instruction_mode or '—' }}</div>
+
+  <div class="cell">
+    <span class="status-badge">
+      <span class="status-dot"></span>
+      {{ 'Waitlist' if section.status == 'waitlist' else section.status | title }}
     </span>
   </div>
+
+  <div class="cell cell-watch" id="watch-btn-{{ section.class_number }}">
+    {% set is_watching = section.class_number in watching %}
+    {% include "partials/watch_button.html" with context %}
+  </div>
+
 </div>
 {% endfor %}
 {% endfor %}
@@ -46,17 +74,20 @@
 {% if not is_append %}</div>{% endif %}
 
 {% elif not is_append %}
-  <div id="results-list"><p style="color:var(--text-muted); padding: 0.5rem 0;">No sections match your filters.</p></div>
+  <div id="results-list">
+    <div class="empty-state">No sections match your filters.</div>
+  </div>
 {% endif %}
 
-{# Show-more button — always OOB so it stays outside the results container. #}
 {% if is_htmx %}
 <div id="show-more-container" hx-swap-oob="true">
   {% if has_more %}
-  <button class="btn btn-show-more"
-          hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}"
-          hx-target="#results-list"
-          hx-swap="beforeend">Show more</button>
+  <div class="show-more-wrap">
+    <button class="btn btn-show-more"
+            hx-get="/sections/partial?offset={{ next_offset }}&q={{ q | urlencode }}&subject={{ selected_subject | urlencode }}&status={{ selected_status | urlencode }}&mode={{ selected_mode | urlencode }}&open_only={{ '1' if open_only else '' }}"
+            hx-target="#results-list"
+            hx-swap="beforeend">Show more</button>
+  </div>
   {% endif %}
 </div>
 {% endif %}

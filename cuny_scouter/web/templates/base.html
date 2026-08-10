@@ -7,590 +7,660 @@
   <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { font-size: 17px; }
 
-    /* ── Theme tokens ── */
+    /* ── Design tokens — light ── */
     :root {
-      --bg:            #eff2f7;   /* gray page canvas */
-      --bg-alt:        #ffffff;   /* white — cards, header, table cells */
-      --bg-stripe:     #f0f4fb;   /* light blue-gray even-row tint */
-      --border:        #dce0ea;   /* blue-tinted gray border */
-      --border-strong: #5383e8;   /* op.gg blue accent */
-      --text:          #202232;
-      --text-muted:    #7b8ab8;
-      --text-head:     #4a5070;
-      --btn-bg:        #ffffff;
-      --btn-hover:     #eef1f8;   /* light blue hover */
-      --input-bg:      #ffffff;
+      --bg:         oklch(0.955 0.004 90);
+      --surface:    oklch(1 0 0);
+      --headerBar:  oklch(0.995 0.002 90);
+      --border:     oklch(0.88 0.005 90);
+      --borderSoft: oklch(0.93 0.004 90);
+      --text:       oklch(0.22 0.01 90);
+      --textMuted:  oklch(0.55 0.01 90);
+      --textHead:   oklch(0.48 0.01 90);
+      --hover:      oklch(0.965 0.004 90);
+      --shadow:     oklch(0.2 0 0 / 0.05);
+      --accent:     oklch(0.55 0.08 260);
     }
 
+    /* ── Design tokens — dark ── */
     html.dark {
-      --bg:            #1a1b2e;   /* dark navy canvas */
-      --bg-alt:        #252740;   /* card / header / table cells */
-      --bg-stripe:     #2b2e4a;   /* even-row tint */
-      --border:        #3a3e62;   /* visible blue-gray border */
-      --border-strong: #5383e8;   /* op.gg blue accent */
-      --text:          #c8cde6;   /* off-white blue text */
-      --text-muted:    #7b82aa;
-      --text-head:     #959ec0;
-      --btn-bg:        #252740;
-      --btn-hover:     #313560;
-      --input-bg:      #252740;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      html:not(.light) {
-        --bg:            #1a1b2e;
-        --bg-alt:        #252740;
-        --bg-stripe:     #2b2e4a;
-        --border:        #3a3e62;
-        --border-strong: #5383e8;
-        --text:          #c8cde6;
-        --text-muted:    #7b82aa;
-        --text-head:     #959ec0;
-        --btn-bg:        #252740;
-        --btn-hover:     #313560;
-        --input-bg:      #252740;
-      }
+      --bg:         oklch(0.17 0.004 90);
+      --surface:    oklch(0.22 0.004 90);
+      --headerBar:  oklch(0.2 0.004 90);
+      --border:     oklch(0.33 0.006 90);
+      --borderSoft: oklch(0.29 0.006 90);
+      --text:       oklch(0.92 0.003 90);
+      --textMuted:  oklch(0.63 0.006 90);
+      --textHead:   oklch(0.58 0.006 90);
+      --hover:      oklch(0.27 0.006 90);
+      --shadow:     oklch(0 0 0 / 0.35);
+      --accent:     oklch(0.65 0.1 260);
     }
 
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
       background: var(--bg);
       color: var(--text);
       font-size: 15px;
       line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      transition: background 0.15s, color 0.15s;
     }
 
     /* ── Header ── */
-    header {
+    .site-header {
       border-bottom: 1px solid var(--border);
-      padding: 0.35rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--bg-alt);
+      background: var(--headerBar);
+      transition: background 0.15s, border-color 0.15s;
     }
+    .site-header-inner {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 1.1rem 2rem;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    .site-brand { display: flex; align-items: baseline; gap: 0.65rem; text-decoration: none; }
+    .site-brand-name { font-weight: 600; font-size: 1.15rem; letter-spacing: -0.01em; color: var(--text); }
+    .site-brand-sub  { font-size: 0.9rem; color: var(--textMuted); }
 
-    header .logo { font-weight: 700; font-size: 0.9rem; color: var(--text); text-decoration: none; }
-    header nav { display: flex; gap: 1.25rem; align-items: center; font-size: 0.8rem; }
-    header nav a { color: var(--text); text-decoration: none; }
-    header nav a:hover { text-decoration: underline; }
-    header nav span { color: var(--text-muted); }
+    .site-nav { display: flex; align-items: center; gap: 1.6rem; font-size: 0.95rem; }
+    .site-nav a { color: var(--textMuted); text-decoration: none; transition: color 0.1s; }
+    .site-nav a:hover { color: var(--text); }
+    .site-nav .nav-active {
+      color: var(--text);
+      font-weight: 500;
+      border-bottom: 1.5px solid var(--accent);
+      padding-bottom: 0.2rem;
+    }
+    .site-nav-user { color: var(--textMuted); font-size: 0.9rem; }
 
     #theme-toggle {
-      background: none;
+      padding: 0.4rem 0.85rem;
       border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      padding: 0.2rem 0.5rem;
-      cursor: pointer;
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--textMuted);
+      font-size: 0.85rem;
       font-family: inherit;
+      cursor: pointer;
+      transition: color 0.1s, border-color 0.1s;
     }
-    #theme-toggle:hover { color: var(--text); border-color: var(--text); }
+    #theme-toggle:hover { color: var(--text); border-color: var(--textMuted); }
 
-    main { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.5rem; }
+    main {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 1.75rem 2rem 3.5rem;
+    }
 
     /* ── Buttons ── */
     .btn {
       display: inline-block;
-      padding: 0.25rem 0.75rem;
+      padding: 0.45rem 1.1rem;
       border: 1px solid var(--border);
-      background: var(--btn-bg);
-      color: var(--text);
-      font-size: 0.8rem;
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--textMuted);
+      font-size: 0.85rem;
       cursor: pointer;
       text-decoration: none;
       font-family: inherit;
+      transition: background 0.1s, color 0.1s;
     }
-    .btn:hover { background: var(--btn-hover); }
-    .btn-discord { background: #5865F2; color: #fff; border-color: #5865F2; }
-    .btn-discord:hover { background: #4752c4; }
-    .btn-watch   { background: var(--border-strong); color: var(--bg); border-color: var(--border-strong); }
-    .btn-watch:hover { background: var(--border-strong); opacity: 1; }
-    .btn-unwatch { background: var(--btn-bg); color: var(--text); border-color: var(--border); }
-    .btn-unwatch:hover { background: var(--btn-bg); }
+    .btn:hover { background: var(--hover); color: var(--text); }
 
-    /* ── Filters ── */
+    .btn-discord { background: #5865F2; color: #fff; border-color: #5865F2; }
+    .btn-discord:hover { background: #4752c4; color: #fff; }
+    .btn-watch   { background: var(--accent); color: oklch(1 0 0); border-color: var(--accent); font-size: 0.8rem; padding: 0.3rem 0.75rem; }
+    .btn-watch:hover { opacity: 0.88; background: var(--accent); color: oklch(1 0 0); }
+    .btn-unwatch { background: var(--surface); color: var(--textMuted); border-color: var(--border); font-size: 0.8rem; padding: 0.3rem 0.75rem; }
+    .btn-unwatch:hover { background: var(--hover); color: var(--text); }
+    .btn-discord.btn-sm { font-size: 0.78rem; padding: 0.28rem 0.65rem; }
+
+    /* ── Inputs & selects ── */
+    .filter-select,
+    .search-input {
+      padding: 0.65rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+    .search-input { padding: 0.65rem 0.9rem; }
+    .filter-select:focus,
+    .search-input:focus {
+      outline: none;
+      border-color: oklch(0.6 0.05 260);
+      box-shadow: 0 0 0 3px oklch(0.6 0.05 260 / 0.12);
+    }
+    .filter-select { cursor: pointer; }
+
+    /* ── Filter bar ── */
     .filters {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
       align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.1rem;
     }
-
-    .search-input {
-      padding: 0.35rem 0.6rem;
-      border: 1px solid var(--border);
-      font-size: 0.85rem;
-      font-family: inherit;
-      background: var(--input-bg);
-      color: var(--text);
-      width: 280px;
-    }
-    .search-input:focus { outline: 1px solid var(--border-strong); border-color: var(--border-strong); }
-
-    .filter-select {
-      padding: 0.35rem 0.6rem;
-      border: 1px solid var(--border);
-      font-size: 0.85rem;
-      font-family: inherit;
-      background: var(--input-bg);
-      color: var(--text);
+    .filter-search { flex: 1 1 280px; min-width: 240px; max-width: 380px; }
+    .open-only-label {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.93rem;
+      color: var(--textMuted);
       cursor: pointer;
+      user-select: none;
+      margin-left: 0.2rem;
     }
-    .filter-select:focus { outline: 1px solid var(--border-strong); }
+    .open-only-label input[type="checkbox"] { cursor: pointer; accent-color: oklch(0.5 0.06 145); }
 
-    /* ── Results ── */
-    .result-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem; min-height: 1.2em; }
+    /* ── Result meta ── */
+    .result-meta { font-size: 0.9rem; color: var(--textMuted); margin-bottom: 1rem; min-height: 1.2em; }
 
+    /* ── HTMX indicator ── */
     .htmx-indicator { display: none; }
-    .htmx-request .htmx-indicator { display: inline; color: var(--text-muted); font-size: 0.8rem; }
+    .htmx-request .htmx-indicator { display: inline; color: var(--textMuted); font-size: 0.85rem; }
 
-    /* ── Table (schedule grid helper tables only) ── */
-    table { width: 100%; border-collapse: separate; border-spacing: 0 2px; font-size: 0.82rem; }
-    th {
-      text-align: left;
-      padding: 0.35rem 0.5rem;
-      border-bottom: 2px solid var(--border);
-      font-weight: 600;
-      color: var(--text-head);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      background: var(--bg-alt);
+    /* ── Results table ── */
+    .results-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 1px 3px var(--shadow);
     }
-    td {
-      padding: 0.4rem 0.5rem;
-      border-top: 1px solid var(--border);
+    .results-table-scroll { overflow-x: auto; overflow-y: visible; }
+
+    .results-header,
+    .result-row {
+      display: grid;
+      grid-template-columns: 190fr 210fr 110fr 190fr 140fr 160fr 130fr 100px;
+      min-width: 1130px;
+    }
+    .results-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--hover);
       border-bottom: 1px solid var(--border);
-      vertical-align: middle;
-      background: var(--bg-alt);
     }
-    td:first-child { border-left: 1px solid var(--border); border-radius: 4px 0 0 4px; }
-    td:last-child  { border-right: 1px solid var(--border); border-radius: 0 4px 4px 0; }
-    tbody tr:hover td { background: var(--btn-hover); }
+    .col-head {
+      padding: 0.85rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--textHead);
+      text-transform: uppercase;
+      letter-spacing: 0.045em;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      transition: color 0.1s;
+    }
+    .col-head:hover { color: var(--text); }
+    .col-head-static { cursor: default; }
+    .col-head-static:hover { color: var(--textHead); }
+    .sort-arrow { font-size: 0.65rem; opacity: 0.6; min-width: 0.65rem; }
 
-    /* ── Status ── */
-    .status-open     { color: #16a34a; font-weight: 600; }
-    .status-closed   { color: #dc2626; }
-    .status-waitlist { color: #d97706; font-weight: 600; }
+    .result-row { border-bottom: 1px solid var(--borderSoft); }
+    .result-row:last-child { border-bottom: none; }
+    .result-row:hover { background: var(--hover); }
 
-    /* ── RMP rating column ── */
-    .rmp-link  { color: var(--text); text-decoration: none; font-size: 0.82rem; }
-    .rmp-link:hover { text-decoration: underline; }
-    .rmp-count { color: var(--text-muted); font-size: 0.75rem; }
-    .rmp-ambiguous { color: var(--text-muted); font-size: 0.72rem; margin-left: 0.2rem; }
+    .cell {
+      padding: 0.85rem;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      font-size: 0.92rem;
+    }
+    .cell-class { flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+    .class-code { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+    .class-name { font-size: 0.82rem; color: var(--textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+    .cell-days, .cell-mode { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-room { color: var(--textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-instructor { gap: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+    .cell-rating { gap: 0.4rem; align-items: baseline; }
+    .cell-mode { color: var(--textMuted); font-size: 0.88rem; }
+    .cell-watch { justify-content: flex-end; }
+
+    /* ── RMP colors ── */
+    .rmp-val { font-size: 0.95rem; font-weight: 700; }
+    .rmp-high { color: oklch(0.42 0.08 150); }
+    .rmp-mid  { color: oklch(0.46 0.09 75); }
+    .rmp-low  { color: oklch(0.46 0.09 25); }
+    .rmp-count { font-size: 0.8rem; color: var(--textMuted); }
+    .rmp-none  { font-size: 0.9rem; color: var(--textMuted); }
+
+    html.dark .rmp-high { color: oklch(0.75 0.1 150); }
+    html.dark .rmp-mid  { color: oklch(0.78 0.1 80); }
+    html.dark .rmp-low  { color: oklch(0.72 0.11 25); }
+
+    /* ── Status badges ── */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.3rem 0.7rem 0.3rem 0.55rem;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-open     .status-badge { background: oklch(0.94 0.025 150); color: oklch(0.34 0.06 150); }
+    .status-open     .status-dot   { background: oklch(0.58 0.09 150); }
+    .status-waitlist .status-badge { background: oklch(0.94 0.03 85);  color: oklch(0.42 0.07 75); }
+    .status-waitlist .status-dot   { background: oklch(0.68 0.1 80); }
+    .status-closed   .status-badge { background: oklch(0.92 0.006 40); color: oklch(0.42 0.01 40); }
+    .status-closed   .status-dot   { background: oklch(0.6 0.015 40); }
+
+    html.dark .status-open     .status-badge { background: oklch(0.28 0.045 150); color: oklch(0.78 0.09 150); }
+    html.dark .status-open     .status-dot   { background: oklch(0.68 0.1 150); }
+    html.dark .status-waitlist .status-badge { background: oklch(0.3 0.05 85);  color: oklch(0.8 0.09 80); }
+    html.dark .status-waitlist .status-dot   { background: oklch(0.74 0.1 80); }
+    html.dark .status-closed   .status-badge { background: oklch(0.3 0.008 40); color: oklch(0.72 0.01 40); }
+    html.dark .status-closed   .status-dot   { background: oklch(0.62 0.015 40); }
+
+    /* No-match fallback */
+    .status-badge-fallback { background: var(--hover); color: var(--textMuted); }
+    .status-dot-fallback   { background: var(--textMuted); }
 
     /* ── Show more ── */
-    #show-more-container { padding: 0.75rem 0; text-align: center; }
-    .btn-show-more { font-size: 0.82rem; padding: 0.35rem 1.25rem; }
+    .show-more-wrap { text-align: center; margin-top: 1.1rem; }
+    .btn-show-more  { padding: 0.65rem 1.75rem; font-size: 0.94rem; }
 
-    /* ── Section cards (index / section browser) ── */
-    #results-list { display: flex; flex-direction: column; gap: 0.55rem; }
-    .section-card { background: var(--bg-alt); border-radius: 3px; overflow: hidden; }
-    .section-card-hdr {
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text);
-      padding: 0.4rem 0.85rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .section-card-row {
-      display: grid;
-      grid-template-columns: 3.5rem 1fr 1fr 3.5rem 4rem auto;
-      align-items: center;
-      column-gap: 0.75rem;
-      padding: 0.55rem 0.85rem;
-      min-width: 0;
-    }
-    .sc-num    { font-size: 0.74rem; color: var(--text-muted); min-width: 0; }
-    .sc-times  { font-size: 0.78rem; min-width: 0;
-                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sc-instr  { font-size: 0.76rem; color: var(--text); min-width: 0;
-                 overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sc-rmp    { font-size: 0.74rem; min-width: 0; }
-    .sc-rmp .rmp-link  { font-size: 0.74rem; }
-    .sc-rmp .rmp-count { font-size: 0.7rem; }
-    .sc-status { font-size: 0.74rem; }
-    .sc-watch  { }
+    /* ── Empty state ── */
+    .empty-state { padding: 3.5rem 1rem; text-align: center; color: var(--textMuted); font-size: 0.98rem; }
 
     /* ── Schedule builder ── */
-
-    /* Muted accent color per class — left-border only */
-    .sched-color-0 { --cc: #5a8ab0; }
-    .sched-color-1 { --cc: #7a65a8; }
-    .sched-color-2 { --cc: #9a8530; }
-    .sched-color-3 { --cc: #a85050; }
-    .sched-color-4 { --cc: #4a9060; }
-    .sched-color-5 { --cc: #a07038; }
-    .sched-color-6 { --cc: #a04878; }
-    .sched-color-7 { --cc: #3a9888; }
-    html.dark .sched-color-0 { --cc: #6898c0; }
-    html.dark .sched-color-1 { --cc: #8878b8; }
-    html.dark .sched-color-2 { --cc: #b09840; }
-    html.dark .sched-color-3 { --cc: #b86060; }
-    html.dark .sched-color-4 { --cc: #58a870; }
-    html.dark .sched-color-5 { --cc: #b08848; }
-    html.dark .sched-color-6 { --cc: #b05888; }
-    html.dark .sched-color-7 { --cc: #48a898; }
-
     .schedule-layout {
-      display: grid;
-      grid-template-columns: 35fr 65fr;
-      gap: 1.25rem;
-      align-items: start;
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
     }
 
-    /* ── Left sidebar: search + class cards ── */
-    .schedule-sidebar { min-width: 0; position: relative; }
-
+    /* Left sidebar */
+    .schedule-sidebar {
+      flex: 0 0 35%;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
     .sched-sidebar-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.6rem;
     }
-    .sched-sidebar-header h2 { font-size: 0.95rem; font-weight: 600; color: var(--text); margin: 0; }
+    .sched-sidebar-header h2 { font-size: 1.05rem; font-weight: 600; }
+    .save-status { font-size: 0.8rem; color: var(--textMuted); }
 
-    .sched-actions { display: flex; align-items: center; gap: 0.75rem; }
-    .save-status   { font-size: 0.8rem; color: var(--text-muted); }
-
-    .sched-search-area { position: relative; margin-bottom: 0.75rem; }
-    .sched-search-area .search-input { width: 100%; box-sizing: border-box; }
+    /* Schedule search */
+    .sched-search-area { position: relative; }
+    .sched-search-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-family: inherit;
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+    .sched-search-input:focus {
+      outline: none;
+      border-color: oklch(0.6 0.05 260);
+      box-shadow: 0 0 0 3px oklch(0.6 0.05 260 / 0.12);
+    }
 
     .sched-search-results {
       display: none;
       position: absolute;
-      top: 100%;
+      top: calc(100% + 0.35rem);
       left: 0;
       right: 0;
       z-index: 50;
-      background: var(--bg-alt);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-top: none;
-      border-radius: 0 0 4px 4px;
-      max-height: 380px;
+      border-radius: 8px;
+      box-shadow: 0 4px 14px var(--shadow);
+      max-height: 320px;
       overflow-y: auto;
-      overflow-x: hidden;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.14);
     }
     .sched-search-area.is-open .sched-search-results { display: block; }
 
-    .sched-result-group { border-bottom: 1px solid var(--border); }
-    .sched-result-group:last-child { border-bottom: none; }
-    .sched-result-hdr {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--text-head);
-      background: var(--bg-stripe);
-      padding: 0.22rem 0.6rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .sched-result-row {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.28rem 0.6rem;
-      min-width: 0;
-    }
-    .sched-result-times {
-      font-size: 0.74rem;
-      flex: 2 1 0;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .sched-result-instr {
-      font-size: 0.72rem;
-      flex: 1.5 1 0;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--text-muted);
-    }
-    .sched-result-status { font-size: 0.7rem; flex-shrink: 0; font-weight: 600; }
-    .sched-result-row .btn { font-size: 0.7rem; padding: 0.18rem 0.45rem; flex-shrink: 0; }
-    .sched-result-empty { padding: 0.65rem 0.6rem; color: var(--text-muted); font-size: 0.82rem; }
-
-    #schedule-list { display: flex; flex-direction: column; gap: 0.4rem; }
-    .sched-list-empty { color: var(--text-muted); font-size: 0.83rem; padding: 0.35rem 0; margin: 0; }
-
-    .sched-class-card {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      background: var(--bg-alt);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--cc, var(--border));
-      border-radius: 4px;
-      padding: 0.5rem 0.6rem;
-      color: var(--text);
-    }
-    .sched-card-body { flex: 1; min-width: 0; }
-    .sched-card-code { font-weight: 700; font-size: 0.82rem; }
-    .sched-card-name { font-size: 0.76rem; margin-top: 0.1rem; color: var(--text-muted);
-                       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sched-card-detail { font-size: 0.72rem; margin-top: 0.08rem; color: var(--text-muted);
-                         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sched-card-detail .rmp-link { color: inherit; text-decoration: none; }
-    .sched-card-detail .rmp-link:hover { text-decoration: underline; }
-    .sched-card-status { font-size: 0.7rem; margin-top: 0.15rem; font-weight: 600; }
-
-    .sched-card-remove {
-      flex-shrink: 0;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 0.88rem;
-      line-height: 1;
-      padding: 0.05rem 0.15rem;
-      opacity: 0.72;
-      transition: opacity 0.15s;
-    }
-    .sched-card-remove:hover { opacity: 1; }
-
-    /* ── Right pane: grid ── */
-    .schedule-grid-pane { min-width: 0; }
-
-    .sched-pane-header {
+    /* Schedule dropdown items */
+    .sched-dropdown-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 0.75rem;
+      gap: 0.6rem;
+      padding: 0.6rem 0.85rem;
+      border-bottom: 1px solid var(--borderSoft);
+      cursor: pointer;
+      transition: background 0.1s;
     }
-    .sched-pane-header h2 { font-size: 0.95rem; font-weight: 600; color: var(--text); }
+    .sched-dropdown-item:last-child { border-bottom: none; }
+    .sched-dropdown-item:hover { background: var(--hover); }
+    .sched-dropdown-label { font-weight: 600; font-size: 0.88rem; }
+    .sched-dropdown-sub { font-size: 0.78rem; color: var(--textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-dropdown-add { font-size: 0.78rem; color: var(--accent); font-weight: 500; flex-shrink: 0; }
+    .sched-dropdown-empty { padding: 0.65rem 0.85rem; color: var(--textMuted); font-size: 0.82rem; }
 
-    /* Outer wrapper: time-label col + day cols */
-    .sched-wrapper {
-      border: 1px solid var(--border);
-      overflow: hidden;
-    }
-
-    .sched-head-row {
-      display: grid;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg-alt);
-    }
-    .sched-corner {
-      border-right: 1px solid var(--border);
-      padding: 0.3rem;
-    }
-    .sched-day-header {
+    /* Schedule class cards */
+    .sched-empty-placeholder {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 1.5rem 1rem;
       text-align: center;
-      font-size: 0.72rem;
+      color: var(--textMuted);
+      font-size: 0.88rem;
+    }
+    #schedule-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .sched-class-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.6rem;
+      box-shadow: 0 1px 2px var(--shadow);
+    }
+    .sched-card-body { flex: 1; min-width: 0; }
+    .sched-card-code { font-weight: 600; font-size: 0.9rem; }
+    .sched-card-detail { font-size: 0.78rem; color: var(--textMuted); margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-card-remove {
+      border: none;
+      background: none;
+      color: var(--textMuted);
+      font-size: 0.8rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      padding: 0.2rem 0.3rem;
+      font-family: inherit;
+      transition: color 0.1s;
+    }
+    .sched-card-remove:hover { color: oklch(0.5 0.1 25); }
+
+    /* Right pane: grid */
+    .schedule-grid-pane {
+      flex: 1 1 0;
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+    .sched-empty { padding: 5rem 1rem; text-align: center; color: var(--textMuted); font-size: 0.98rem; }
+
+    /* Grid chrome */
+    .sched-grid-overflow { overflow-x: auto; }
+    .sched-grid-cols {
+      display: grid;
+      min-width: 100%;
+    }
+    .sched-day-header-cell {
+      padding: 0.65rem 0.5rem;
+      text-align: center;
+      font-size: 0.78rem;
       font-weight: 600;
-      color: var(--text-head);
+      color: var(--textHead);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 0.3rem 0;
-      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--hover);
     }
-    .sched-day-header:last-child { border-right: none; }
-
-    .sched-body-row {
+    .sched-corner-cell {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--borderSoft);
+      background: var(--hover);
+    }
+    .sched-body-grid {
       display: grid;
       position: relative;
     }
     .sched-time-col {
       position: relative;
-      border-right: 1px solid var(--border);
+      border-right: 1px solid var(--borderSoft);
     }
     .sched-hour-label {
       position: absolute;
       right: 4px;
       font-size: 0.65rem;
-      color: var(--text-muted);
+      color: var(--textMuted);
       transform: translateY(-50%);
       white-space: nowrap;
     }
-
     .sched-day-col {
       position: relative;
-      border-right: 1px solid var(--border);
+      border-right: 1px solid var(--borderSoft);
     }
     .sched-day-col:last-child { border-right: none; }
-
     .sched-hour-line {
       position: absolute;
-      left: 0; right: 0;
-      border-top: 1px solid var(--border);
+      left: 0;
+      right: 0;
+      border-top: 1px solid var(--borderSoft);
       pointer-events: none;
     }
 
+    /* Calendar event blocks */
     .sched-event {
       position: absolute;
-      background: var(--bg-alt);
-      color: var(--text);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--cc, var(--border-strong));
+      left: 3px;
+      right: 3px;
+      border-radius: 5px;
+      padding: 0.3rem 0.4rem;
       overflow: hidden;
-      font-size: 0.68rem;
-      padding: 0.2rem 0.3rem;
-      line-height: 1.3;
-      box-sizing: border-box;
-      border-radius: 2px;
+      font-size: 0.72rem;
+      background: var(--sched-bg, var(--hover));
+      color: var(--sched-text, var(--textMuted));
     }
-    .sched-event.sched-conflict {
-      border-color: #d97706;
-      border-left-color: #d97706;
-    }
-    .sched-event-code  { font-weight: 600; color: var(--text); }
-    .sched-event-time  { color: var(--text-muted); font-size: 0.64rem; }
-    .sched-event-room  { color: var(--text-muted); }
-    .sched-event-instr { color: var(--text-muted); }
-    .sched-conflict-warn { color: #d97706; font-size: 0.62rem; margin-top: 0.1rem; }
+    .sched-event.sched-conflict { outline: 1.5px solid oklch(0.68 0.1 80); }
+    .sched-event-code  { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-event-room,
+    .sched-event-time  { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.85; }
+    .sched-conflict-warn { color: oklch(0.68 0.1 80); font-size: 0.62rem; margin-top: 0.1rem; }
 
-    .sched-empty {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      padding: 2rem 0;
-      text-align: center;
-    }
+    /* 6-color rotation (matching design spec hues: 260 25 150 85 320 200) */
+    .sched-color-0 { --sched-bg: oklch(0.93 0.03 260);  --sched-text: oklch(0.32 0.06 260); }
+    .sched-color-1 { --sched-bg: oklch(0.93 0.03 25);   --sched-text: oklch(0.32 0.06 25); }
+    .sched-color-2 { --sched-bg: oklch(0.93 0.03 150);  --sched-text: oklch(0.32 0.06 150); }
+    .sched-color-3 { --sched-bg: oklch(0.93 0.035 85);  --sched-text: oklch(0.32 0.06 85); }
+    .sched-color-4 { --sched-bg: oklch(0.93 0.03 320);  --sched-text: oklch(0.32 0.06 320); }
+    .sched-color-5 { --sched-bg: oklch(0.93 0.03 200);  --sched-text: oklch(0.32 0.06 200); }
+
+    html.dark .sched-color-0 { --sched-bg: oklch(0.32 0.045 260); --sched-text: oklch(0.88 0.03 260); }
+    html.dark .sched-color-1 { --sched-bg: oklch(0.32 0.045 25);  --sched-text: oklch(0.88 0.03 25); }
+    html.dark .sched-color-2 { --sched-bg: oklch(0.32 0.045 150); --sched-text: oklch(0.88 0.03 150); }
+    html.dark .sched-color-3 { --sched-bg: oklch(0.32 0.05 85);   --sched-text: oklch(0.88 0.03 85); }
+    html.dark .sched-color-4 { --sched-bg: oklch(0.32 0.045 320); --sched-text: oklch(0.88 0.03 320); }
+    html.dark .sched-color-5 { --sched-bg: oklch(0.32 0.045 200); --sched-text: oklch(0.88 0.03 200); }
 
     /* Unscheduled strip */
-    .sched-unscheduled {
-      border: 1px solid var(--border);
-      border-top: none;
-      padding: 0.5rem;
-    }
+    .sched-unscheduled { border-top: 1px solid var(--border); padding: 0.75rem 1rem; }
     .sched-unscheduled-label {
       font-size: 0.72rem;
       font-weight: 600;
-      color: var(--text-muted);
+      color: var(--textMuted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.5rem;
     }
     .sched-unscheduled-items { display: flex; flex-wrap: wrap; gap: 0.4rem; }
     .sched-unscheduled-item {
       display: flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.5rem;
       border: 1px solid var(--border);
-      padding: 0.25rem 0.5rem;
-      font-size: 0.78rem;
-      background: var(--bg);
+      border-radius: 6px;
+      padding: 0.28rem 0.6rem;
+      font-size: 0.8rem;
+      background: var(--sched-bg, var(--hover));
+      color: var(--sched-text, var(--textMuted));
     }
+    .sched-unscheduled-remove {
+      border: none;
+      background: none;
+      color: inherit;
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0;
+      opacity: 0.7;
+      font-family: inherit;
+    }
+    .sched-unscheduled-remove:hover { opacity: 1; }
 
-    /* Add-to-schedule button */
-    .btn-add-schedule  { background: var(--btn-bg); color: var(--text); border-color: var(--border); }
-    .btn-add-schedule:hover { background: var(--btn-hover); }
-    .btn-in-schedule { background: var(--border-strong); color: var(--bg); border-color: var(--border-strong); }
-    .btn-in-schedule:hover { opacity: 0.8; }
+    /* ── Me / watches page ── */
+    .page-heading { font-size: 1.15rem; font-weight: 600; margin-bottom: 1.25rem; }
+    .watches-table-wrap {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: 0 1px 3px var(--shadow);
+    }
+    .watches-table-scroll { overflow-x: auto; }
+    .watches-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      min-width: 640px;
+    }
+    .watches-table th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--textHead);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--hover);
+      border-bottom: 1px solid var(--border);
+    }
+    .watches-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--borderSoft);
+      vertical-align: middle;
+    }
+    .watches-table tr:last-child td { border-bottom: none; }
+    .watches-table tbody tr:hover td { background: var(--hover); }
+
+    /* ── FAQ accordion ── */
+    .faq-wrap { max-width: 760px; margin: 0 auto; }
+    .faq-heading { font-weight: 600; font-size: 1.4rem; margin-bottom: 0.4rem; }
+    .faq-sub { font-size: 0.92rem; color: var(--textMuted); margin-bottom: 2rem; }
+    .faq-list { display: flex; flex-direction: column; }
+    .faq-item { border-bottom: 1px solid var(--borderSoft); }
+    .faq-question {
+      padding: 1rem 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      cursor: pointer;
+      transition: color 0.1s;
+    }
+    .faq-question:hover { color: var(--textHead); }
+    .faq-q-text  { font-weight: 500; font-size: 0.98rem; }
+    .faq-toggle  { font-size: 0.85rem; color: var(--textMuted); flex-shrink: 0; }
+    .faq-answer  {
+      display: none;
+      padding: 0 0.25rem 1.1rem;
+      font-size: 0.9rem;
+      color: var(--textMuted);
+      line-height: 1.55;
+      max-width: 620px;
+    }
+    .faq-item.open .faq-answer  { display: block; }
+    .faq-item.open .faq-toggle  { }
 
     @media (max-width: 900px) {
-      .schedule-layout { grid-template-columns: 1fr; }
-      .sched-search-area .search-input { width: 100%; }
+      .schedule-layout { flex-direction: column; }
+      .schedule-sidebar { flex: none; width: 100%; }
     }
-
     @media (max-width: 640px) {
-      .search-input { width: 100%; }
+      .site-header-inner { padding: 0.9rem 1rem; }
+      .site-brand-sub { display: none; }
+      .site-nav { gap: 1rem; font-size: 0.88rem; }
+      main { padding: 1.25rem 1rem 2.5rem; }
       .filters { flex-direction: column; align-items: stretch; }
-      .filter-select { width: 100%; }
-
-      header { padding: 0.5rem 1rem; }
-      header nav { gap: 0.75rem; flex-wrap: wrap; }
-      header nav .username { display: none; }
-      main { padding: 1rem; }
-
-      table thead { display: none; }
-      table, tbody { display: block; width: 100%; }
-      tr {
-        display: block;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        margin-bottom: 0.75rem;
-        overflow: hidden;
-      }
-      td {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.45rem 0.75rem;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg) !important;
-      }
-      td:first-child { border-left: none; border-radius: 0; }
-      td:last-child  { border-right: none; border-radius: 0; }
-      tr:last-child td { border-bottom: 1px solid var(--border); }
-      td:last-child { border-bottom: none; }
-      td::before {
-        content: attr(data-label);
-        color: var(--text-muted);
-        font-size: 0.72rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        flex-shrink: 0;
-        margin-right: 1rem;
-      }
-      td[data-label=""] { justify-content: flex-end; }
-      td[data-label=""]::before { display: none; }
-
-      /* Course header rows: flat label, not a card */
-      .course-header-row {
-        border: none;
-        border-radius: 0;
-        margin-bottom: 0;
-      }
-      .course-header-row td {
-        display: block;
-        border: none;
-        border-left: 3px solid var(--border-strong);
-        padding: 0.6rem 0.75rem 0.25rem;
-        background: var(--bg-stripe) !important;
-      }
-      .course-header-row td::before { display: none; }
-
-      .col-mode, .col-dates, .col-section, .col-rmp { display: none; }
+      .filter-search { max-width: none; }
     }
   </style>
   <script>
     (function () {
-      const stored = localStorage.getItem('theme');
-      if (stored === 'light') document.documentElement.classList.add('light');
-      else document.documentElement.classList.add('dark');
+      if (localStorage.getItem('csTheme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
     })();
   </script>
 </head>
 <body>
-  <header>
-    <a href="/" class="logo">CUNY Course Scouter</a>
-    <nav>
-      <a href="/schedule">Schedule</a>
-      {% if student %}
-        <a href="/me">My Watches</a>
-        <span class="username">{{ student.discord_username }}</span>
-        <a href="/logout">Logout</a>
-      {% else %}
-        <a href="/auth/discord" class="btn btn-discord">Login with Discord</a>
-      {% endif %}
-      <button id="theme-toggle" onclick="toggleTheme()">Dark / Light</button>
-    </nav>
-  </header>
+  <div class="site-header">
+    <div class="site-header-inner">
+      <a href="/" class="site-brand">
+        <span class="site-brand-name">CUNY Course Scouter</span>
+        <span class="site-brand-sub">{{ site_institution }} · {{ site_term }}</span>
+      </a>
+      <nav class="site-nav">
+        <a href="/" class="{{ 'nav-active' if request.url.path == '/' else '' }}">Browse</a>
+        <a href="/schedule" class="{{ 'nav-active' if request.url.path.startswith('/schedule') else '' }}">Schedule</a>
+        <a href="/faq" class="{{ 'nav-active' if request.url.path == '/faq' else '' }}">FAQ</a>
+        {% if student %}
+          <span class="site-nav-user">{{ student.discord_username }}</span>
+          <a href="/me">My Watches</a>
+          <a href="/logout">Logout</a>
+        {% else %}
+          <a href="/auth/discord" class="btn btn-discord">Login with Discord</a>
+        {% endif %}
+        <button id="theme-toggle" onclick="toggleTheme()">Dark mode</button>
+      </nav>
+    </div>
+  </div>
   <main>
     {% block content %}{% endblock %}
   </main>
   <script>
+    (function () {
+      const btn = document.getElementById('theme-toggle');
+      const isDark = document.documentElement.classList.contains('dark');
+      btn.textContent = isDark ? 'Light mode' : 'Dark mode';
+    })();
+
     function toggleTheme() {
       const html = document.documentElement;
-      const isDark = html.classList.contains('dark') ||
-        (!html.classList.contains('light') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      if (isDark) {
+      const btn  = document.getElementById('theme-toggle');
+      if (html.classList.contains('dark')) {
         html.classList.remove('dark');
-        html.classList.add('light');
-        localStorage.setItem('theme', 'light');
+        localStorage.setItem('csTheme', 'light');
+        btn.textContent = 'Dark mode';
       } else {
-        html.classList.remove('light');
         html.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+        localStorage.setItem('csTheme', 'dark');
+        btn.textContent = 'Light mode';
       }
     }
   </script>
