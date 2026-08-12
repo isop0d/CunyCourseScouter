@@ -1,12 +1,13 @@
 {% for course in courses %}
 {% for entry in course.sections %}
 {% set section = entry.section %}
+{% set prof = entry.professor %}
 <div class="sched-dropdown-item"
      data-class-number="{{ section.class_number }}"
      onclick="toggleSchedule(null, {{ section.class_number }})">
   <div style="min-width:0;">
     <div class="sched-dropdown-label">{{ section.subject }} {{ section.course_number }} — {{ course.course_name }}</div>
-    <div class="sched-dropdown-sub">{{ section.days_times or 'TBA' }} · {{ section.instructor or 'TBA' }}</div>
+    <div class="sched-dropdown-sub">{{ section.days_times or 'TBA' }} · {{ section.instructor or 'TBA' }}{% if prof and prof.avg_rating and prof.match_status in ('matched', 'ambiguous') %} · <span class="rmp-val {% if prof.avg_rating >= 4.2 %}rmp-high{% elif prof.avg_rating >= 3.3 %}rmp-mid{% else %}rmp-low{% endif %}" style="font-size:0.78rem;">{{ "%.1f" | format(prof.avg_rating) }}</span>{% endif %}</div>
   </div>
   <div style="display:flex;align-items:center;gap:0.55rem;flex-shrink:0;">
     <div class="status-{{ section.status }}">
