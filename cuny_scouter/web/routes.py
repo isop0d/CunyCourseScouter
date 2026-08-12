@@ -295,6 +295,13 @@ async def add_watch(class_number: int, request: Request, db: Session = Depends(g
         existing.deactivated_at = None
     else:
         db.add(Watch(student_id=student.id, class_number=class_number))
+
+    entry = db.query(ScheduleEntry).filter(
+        ScheduleEntry.student_id == student.id,
+        ScheduleEntry.section_id == class_number,
+    ).first()
+    if not entry:
+        db.add(ScheduleEntry(student_id=student.id, section_id=class_number))
     db.commit()
 
     return templates.TemplateResponse(request, "partials/watch_button.html", {
@@ -320,7 +327,11 @@ async def remove_watch(class_number: int, request: Request, db: Session = Depend
     if watch:
         watch.active = False
         watch.deactivated_at = datetime.now(timezone.utc)
-        db.commit()
+    db.query(ScheduleEntry).filter(
+        ScheduleEntry.student_id == student.id,
+        ScheduleEntry.section_id == class_number,
+    ).delete()
+    db.commit()
 
     return templates.TemplateResponse(request, "partials/watch_button.html", {
         "section": section,
@@ -329,24 +340,9 @@ async def remove_watch(class_number: int, request: Request, db: Session = Depend
     })
 
 
-@router.get("/me", response_class=HTMLResponse)
-async def my_watches(request: Request, db: Session = Depends(get_session)):
-    student = _current_student(request, db)
-    if not student:
-        return RedirectResponse("/")
-
-    watches = db.query(Watch).filter(
-        Watch.student_id == student.id,
-        Watch.active == True,
-    ).all()
-
-    sections = {s.class_number: s for s in db.query(Section).all()}
-
-    return templates.TemplateResponse(request, "me.html", {
-        "student": student,
-        "watches": watches,
-        "sections": sections,
-    })
+@router.get("/me")
+async def my_watches():
+    return RedirectResponse("/schedule")
 
 
 # ── Discord OAuth ─────────────────────────────────────────────────────────────
@@ -514,6 +510,9 @@ async def schedule_grid_partial(
     ids: Annotated[list[int], Query()] = [],
     db: Session = Depends(get_session),
 ):
+    student = _current_student(request, db)
+    watching = _watched_classes(student)
+
     if not ids:
         return templates.TemplateResponse(request, "partials/schedule_panels.html", {
             "events": [],
@@ -525,6 +524,7 @@ async def schedule_grid_partial(
             "grid_height": _GRID_HEIGHT,
             "class_list": [],
             "color_map": {},
+            "watching": watching,
         })
 
     section_map = {
@@ -568,6 +568,7 @@ async def schedule_grid_partial(
         "grid_height": _GRID_HEIGHT,
         "class_list": class_list,
         "color_map": color_map,
+        "watching": watching,
     })
 
 
@@ -609,11 +610,20 @@ async def schedule_save(
     }
     new_ids = set(ids)
 
+    now = datetime.now(timezone.utc)
     for sid in existing - new_ids:
         db.query(ScheduleEntry).filter(
             ScheduleEntry.student_id == student.id,
             ScheduleEntry.section_id == sid,
         ).delete()
+        watch = db.query(Watch).filter(
+            Watch.student_id == student.id,
+            Watch.class_number == sid,
+            Watch.active == True,
+        ).first()
+        if watch:
+            watch.active = False
+            watch.deactivated_at = now
     for sid in new_ids - existing:
         db.add(ScheduleEntry(student_id=student.id, section_id=sid))
     db.commit()

@@ -130,6 +130,16 @@
       const results = e.detail.target;
       if (results.children.length > 0 && results.querySelector('.sched-dropdown-item')) {
         openSearch();
+        const schedule = getSchedule();
+        results.querySelectorAll('.sched-dropdown-item[data-class-number]').forEach(function(item) {
+          const cn = parseInt(item.dataset.classNumber);
+          if (schedule.includes(cn)) {
+            const addEl = item.querySelector('.sched-dropdown-add');
+            if (addEl) { addEl.textContent = 'Added'; addEl.style.color = 'var(--textMuted)'; }
+            item.style.opacity = '0.6';
+            item.style.pointerEvents = 'none';
+          }
+        });
       }
     }
   });

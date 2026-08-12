@@ -1,7 +1,12 @@
 {% for item in class_list %}
 <div class="sched-class-card" id="sched-card-{{ item.section.class_number }}">
   <div class="sched-card-body">
-    <div class="sched-card-code">{{ item.section.subject }} {{ item.section.course_number }}</div>
+    <div class="sched-card-code">
+      {{ item.section.subject }} {{ item.section.course_number }}
+      {% if watching is defined and item.section.class_number in watching %}
+      <span class="watch-badge">Watching</span>
+      {% endif %}
+    </div>
     <div class="sched-card-detail">{{ item.section.days_times or 'TBA' }}</div>
     <div class="sched-card-detail">{{ item.section.instructor or 'TBA' }}{% if item.section.room %} · {{ item.section.room }}{% endif %}</div>
   </div>

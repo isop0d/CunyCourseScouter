@@ -401,6 +401,17 @@
       transition: color 0.1s;
     }
     .sched-card-remove:hover { color: oklch(0.5 0.1 25); }
+    .watch-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      background: color-mix(in oklch, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+      border-radius: 999px;
+      padding: 0.1rem 0.45rem;
+      white-space: nowrap;
+    }
 
     /* Right pane: grid */
     .schedule-grid-pane {
@@ -631,7 +642,6 @@
         <a href="/faq" class="{{ 'nav-active' if request.url.path == '/faq' else '' }}">FAQ</a>
         {% if student %}
           <span class="site-nav-user">{{ student.discord_username }}</span>
-          <a href="/me">My Watches</a>
           <a href="/logout">Logout</a>
         {% else %}
           <a href="/auth/discord" class="btn btn-discord">Login with Discord</a>

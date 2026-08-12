@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     discord_guild_id: str = ""
 
     # Scraper
-    fast_poll_interval_seconds: int = 120
+    fast_poll_interval_seconds: int = 30
     full_poll_interval_seconds: int = 3600
     rmp_refresh_interval_seconds: int = 43200  # 12 hours
     rmp_school_id: int = 222  # Baruch College
