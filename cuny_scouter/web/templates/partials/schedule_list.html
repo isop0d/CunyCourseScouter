@@ -8,7 +8,10 @@
       {% endif %}
     </div>
     <div class="sched-card-detail">{{ item.section.days_times or 'TBA' }}</div>
-    <div class="sched-card-detail">{{ item.section.instructor or 'TBA' }}{% if item.section.room %} · {{ item.section.room }}{% endif %}{% if item.prof and item.prof.avg_rating and item.prof.match_status in ('matched', 'ambiguous') %} · <span class="rmp-val {% if item.prof.avg_rating >= 4.2 %}rmp-high{% elif item.prof.avg_rating >= 3.3 %}rmp-mid{% else %}rmp-low{% endif %}" style="font-size:0.78rem;">{{ "%.1f" | format(item.prof.avg_rating) }}</span>{% endif %}</div>
+    <div class="sched-card-detail">{{ item.section.instructor or 'TBA' }}{% if item.section.room %} · {{ item.section.room }}{% endif %}</div>
+    {% if item.prof and item.prof.avg_rating and item.prof.match_status in ('matched', 'ambiguous') %}
+    <div class="sched-card-detail"><span class="rmp-val {% if item.prof.avg_rating >= 4.2 %}rmp-high{% elif item.prof.avg_rating >= 3.3 %}rmp-mid{% else %}rmp-low{% endif %}">{{ "%.1f" | format(item.prof.avg_rating) }}</span><span style="font-size:0.72rem;color:var(--textMuted);margin-left:0.25rem;">RMP</span></div>
+    {% endif %}
   </div>
   <button class="sched-card-remove" onclick="removeFromSchedule({{ item.section.class_number }})" title="Remove">Remove</button>
 </div>
