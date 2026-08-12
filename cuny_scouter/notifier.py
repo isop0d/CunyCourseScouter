@@ -94,6 +94,9 @@ def dispatch_notifications(
 
     sent = 0
     for event in events:
+        if event.from_status == "unknown":
+            continue  # first-time-seen, not a real status change
+
         section = db.get(Section, event.class_number)
         if section is None:
             continue
