@@ -10,6 +10,7 @@ Background worker: two-tier polling.
 Run with: python -m cuny_scouter.scheduler
 """
 import logging
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -427,23 +428,22 @@ def run_worker() -> None:
 
     log.info(f"Worker started. Fast poll: {fast_interval}s, Full poll: {full_interval}s.")
 
-    last_full = float("-inf")   # force full poll on startup
-
-    while True:
-        now = time.monotonic()
-
-        if now - last_full >= full_interval:
+    def _full_poll_loop():
+        time.sleep(60)  # let fast polls start first before the lengthy full poll
+        while True:
             try:
                 poll_full()
-                last_full = time.monotonic()
             except Exception:
                 log.exception("Full poll failed.")
-        else:
-            try:
-                poll_fast()
-            except Exception:
-                log.exception("Fast poll failed.")
+            time.sleep(full_interval)
 
+    threading.Thread(target=_full_poll_loop, daemon=True, name="full-poll").start()
+
+    while True:
+        try:
+            poll_fast()
+        except Exception:
+            log.exception("Fast poll failed.")
         log.info(f"Sleeping {fast_interval}s.")
         time.sleep(fast_interval)
 
