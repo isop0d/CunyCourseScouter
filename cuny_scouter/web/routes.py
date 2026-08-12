@@ -507,6 +507,7 @@ async def schedule_page(request: Request, db: Session = Depends(get_session)):
 @router.get("/schedule/grid", response_class=HTMLResponse)
 async def schedule_grid_partial(
     request: Request,
+    background_tasks: BackgroundTasks,
     ids: Annotated[list[int], Query()] = [],
     db: Session = Depends(get_session),
 ):
@@ -547,9 +548,11 @@ async def schedule_grid_partial(
             color_map[cn] = cidx
             class_list.append({"section": s, "color_idx": cidx, "prof": None})
 
-    # Fetch professor info for class list
+    # Fetch professor info for class list; kick off background RMP fetch for unknowns
     all_sections = list(section_map.values())
-    prof_map, _ = _fetch_professor_map(db, all_sections)
+    prof_map, missing = _fetch_professor_map(db, all_sections)
+    if missing:
+        background_tasks.add_task(_rmp_fetch_bg, missing)
     for item in class_list:
         item["prof"] = _attach_professor(item["section"], prof_map)
 
@@ -626,6 +629,15 @@ async def schedule_save(
             watch.deactivated_at = now
     for sid in new_ids - existing:
         db.add(ScheduleEntry(student_id=student.id, section_id=sid))
+        watch = db.query(Watch).filter(
+            Watch.student_id == student.id,
+            Watch.class_number == sid,
+        ).first()
+        if watch:
+            watch.active = True
+            watch.deactivated_at = None
+        else:
+            db.add(Watch(student_id=student.id, class_number=sid))
     db.commit()
 
     return HTMLResponse('<span class="save-status">Saved ✓</span>')
