@@ -116,7 +116,8 @@
     statusEl.innerHTML = await resp.text();
   }
 
-  if (!localStorage.getItem('schedule') && _savedIds.length > 0) {
+  // Always sync from server state — reflects all watched/saved classes
+  if (_savedIds.length > 0) {
     setSchedule(_savedIds);
   }
 
