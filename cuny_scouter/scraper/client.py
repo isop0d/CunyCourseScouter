@@ -100,6 +100,62 @@ def fetch_class_html_with_session(session: requests.Session, class_number: int) 
     return html
 
 
+def fetch_subject_html_with_session(
+    session: requests.Session,
+    subject_code: str,
+    career: str = "UGRD",
+) -> str:
+    """
+    Fetch all sections for one subject+career reusing an existing session.
+    Caller must have used create_search_session() first.
+    Raises ScraperNoResultsError if no sections found for this subject/career.
+    """
+    headers = {"User-Agent": settings.scraper_user_agent}
+    career_label = CAREER_LABELS.get(career, career)
+    resp = session.post(
+        f"{BASE}/CFSearchToolController",
+        headers=headers,
+        timeout=30,
+        data={
+            "selectedSubjectName": subject_code,
+            "subject_name": subject_code,
+            "selectedCCareerName": career_label,
+            "courseCareer": career,
+            "selectedCAttrName": "",
+            "courseAttr": "",
+            "selectedCAttrVName": "",
+            "courseAttValue": "",
+            "selectedReqDName": "",
+            "reqDesignation": "",
+            "open_class": "",
+            "selectedSessionName": "",
+            "class_session": "",
+            "selectedModeInsName": "",
+            "meetingStart": "LT",
+            "selectedMeetingStartName": "less than",
+            "meetingStartText": "",
+            "AndMeetingStartText": "",
+            "meetingEnd": "LE",
+            "selectedMeetingEndName": "less than or equal to",
+            "meetingEndText": "",
+            "AndMeetingEndText": "",
+            "daysOfWeek": "I",
+            "selectedDaysOfWeekName": "include only these days",
+            "instructor": "B",
+            "selectedInstructorName": "begins with",
+            "instructorName": "",
+            "search_btn_search": "Search",
+        },
+    )
+    if resp.status_code != 200:
+        raise ScraperError(f"Search POST returned HTTP {resp.status_code}")
+    resp.encoding = "ISO-8859-1"
+    html = resp.text
+    if "The search returns no results" in html or "classfound_msg" not in html:
+        raise ScraperNoResultsError(f"{subject_code} ({career}): no sections found")
+    return html
+
+
 def fetch_subjects() -> list[tuple[str, str]]:
     """
     Return all available subjects for the configured institution and term as

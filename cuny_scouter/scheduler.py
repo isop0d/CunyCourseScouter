@@ -29,8 +29,8 @@ from cuny_scouter.scraper.client import (
     create_search_session,
     fetch_all_subjects,
     fetch_class_html,
-    fetch_class_html_with_session,
     fetch_subject_html,
+    fetch_subject_html_with_session,
     fetch_subjects,
     ScraperError,
     ScraperNoResultsError,
@@ -174,12 +174,11 @@ def _get_watched_classes(db) -> dict[str, list[tuple[int, str]]]:
 
 def _run_fast_poll(grouped: dict[str, list[tuple[int, str]]]) -> None:
     """
-    Fetch each watched class individually using a shared session (1 HTTP call per class
-    instead of 3 per subject). Roughly 3-5x faster than the per-subject approach.
+    Fetch each watched subject using a shared session, then filter to watched class numbers.
+    Subject-based search is reliable on CUNY's form; class-number-only search returns nothing.
     """
-    flat_watches: list[tuple[int, str]] = [
-        (cn, status) for watches in grouped.values() for cn, status in watches
-    ]
+    total_classes = sum(len(v) for v in grouped.values())
+    watched_class_numbers = [cn for pairs in grouped.values() for cn, _ in pairs]
 
     try:
         session = create_search_session()
@@ -203,7 +202,6 @@ def _run_fast_poll(grouped: dict[str, list[tuple[int, str]]]) -> None:
     now = datetime.now(timezone.utc)
 
     # Baseline: last completed FAST run's snapshots — immune to full-poll overwrites
-    watched_class_numbers = [cn for cn, _ in flat_watches]
     prev_fast_run = (
         db.query(ScrapeRun)
         .filter(ScrapeRun.subject == "FAST", ScrapeRun.status.in_(["ok", "partial"]))
@@ -223,34 +221,36 @@ def _run_fast_poll(grouped: dict[str, list[tuple[int, str]]]) -> None:
     else:
         prev_snapshots = []  # First cycle — all unknown, notifier skips them
 
-    for i, (class_number, _) in enumerate(flat_watches):
-        if i > 0:
-            time.sleep(0.15)
-        try:
-            html = fetch_class_html_with_session(session, class_number)
-            records = parse_sections(
-                html,
-                term_code=settings.term_code,
-                institution=settings.institution,
-                subject="",
-            )
-            for r in records:
-                if r.class_number == class_number:
-                    db.execute(text(
-                        "UPDATE sections SET status=:s, updated_at=:t, last_seen_run=:r WHERE class_number=:cn"
-                    ), {"s": r.status, "t": now, "r": run.id, "cn": r.class_number})
-                    db.execute(text(
-                        "INSERT INTO section_snapshots (run_id, class_number, status, scraped_at) "
-                        "VALUES (:r, :cn, :s, :t)"
-                    ), {"r": run.id, "cn": r.class_number, "s": r.status, "t": now})
-                    all_records.append(r)
-                    log.info(f"  Class {r.class_number}: {r.status}")
-        except ScraperNoResultsError:
-            log.warning(f"  Class {class_number}: not found in CUNY search")
-        except Exception as exc:
-            db.rollback()
-            log.warning(f"  Class {class_number}: failed — {exc}")
-            failed.append(class_number)
+    for i, (fetch_key, class_pairs) in enumerate(grouped.items()):
+        watched_cns = {cn for cn, _ in class_pairs}
+        for career in ("UGRD", "GRAD"):
+            if i > 0 or career == "GRAD":
+                time.sleep(0.15)
+            try:
+                html = fetch_subject_html_with_session(session, fetch_key, career=career)
+                records = parse_sections(
+                    html,
+                    term_code=settings.term_code,
+                    institution=settings.institution,
+                    subject=fetch_key,
+                )
+                for r in records:
+                    if r.class_number in watched_cns:
+                        db.execute(text(
+                            "UPDATE sections SET status=:s, updated_at=:t, last_seen_run=:r WHERE class_number=:cn"
+                        ), {"s": r.status, "t": now, "r": run.id, "cn": r.class_number})
+                        db.execute(text(
+                            "INSERT INTO section_snapshots (run_id, class_number, status, scraped_at) "
+                            "VALUES (:r, :cn, :s, :t)"
+                        ), {"r": run.id, "cn": r.class_number, "s": r.status, "t": now})
+                        all_records.append(r)
+                        log.info(f"  Class {r.class_number}: {r.status}")
+            except ScraperNoResultsError:
+                pass
+            except Exception as exc:
+                db.rollback()
+                log.warning(f"  {fetch_key} ({career}): failed — {exc}")
+                failed.extend(list(watched_cns))
 
     db.commit()
     run.sections_found = len(all_records)
@@ -258,7 +258,7 @@ def _run_fast_poll(grouped: dict[str, list[tuple[int, str]]]) -> None:
     run.finished_at = now
     db.commit()
 
-    log.info(f"FAST poll complete. classes={len(flat_watches)}, checked={len(all_records)}, failed={len(failed)}")
+    log.info(f"FAST poll complete. classes={total_classes}, checked={len(all_records)}, failed={len(failed)}")
 
     if all_records:
         events = compute_diff(all_records, prev_snapshots, run.id)
