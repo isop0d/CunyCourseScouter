@@ -2,9 +2,10 @@
 {% for entry in course.sections %}
 {% set section = entry.section %}
 {% set prof = entry.professor %}
-<div class="sched-dropdown-item"
+{% set is_scheduled = scheduled_set is defined and section.class_number in scheduled_set %}
+<div class="sched-dropdown-item{% if is_scheduled %} is-scheduled{% endif %}"
      data-class-number="{{ section.class_number }}"
-     onclick="toggleSchedule(null, {{ section.class_number }})">
+     {% if not is_scheduled %}onclick="addToSchedule({{ section.class_number }})"{% endif %}>
   <div style="min-width:0;">
     <div class="sched-dropdown-label">{{ section.subject }} {{ section.course_number }} — {{ course.course_name }}</div>
     <div class="sched-dropdown-sub">{{ section.days_times or 'TBA' }} · {{ section.instructor or 'TBA' }}{% if prof and prof.avg_rating and prof.match_status in ('matched', 'ambiguous') %} · <span class="rmp-val {% if prof.avg_rating >= 4.2 %}rmp-high{% elif prof.avg_rating >= 3.3 %}rmp-mid{% else %}rmp-low{% endif %}" style="font-size:0.78rem;">{{ "%.1f" | format(prof.avg_rating) }}</span>{% endif %}</div>
@@ -15,7 +16,7 @@
         <span class="status-dot"></span>{{ 'Waitlist' if section.status == 'waitlist' else section.status | title }}
       </span>
     </div>
-    <span class="sched-dropdown-add">Add</span>
+    <span class="sched-dropdown-add">{{ 'Added' if is_scheduled else 'Add' }}</span>
   </div>
 </div>
 {% endfor %}

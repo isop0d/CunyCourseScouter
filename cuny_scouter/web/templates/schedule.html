@@ -8,10 +8,14 @@
   <div class="schedule-sidebar">
     <div class="sched-sidebar-header">
       <h2>My Classes</h2>
-      <div style="display:flex;align-items:center;gap:0.75rem;">
-        <button class="btn" onclick="saveSchedule()">Save</button>
-        <span id="save-status" class="save-status"></span>
-      </div>
+      <button type="button" class="btn btn-sm" id="watched-toggle" onclick="toggleWatched()">
+        Watched <span id="watched-count">({{ watching|length }})</span>
+      </button>
+    </div>
+
+    {# Watched-classes dropdown — one-click add to schedule #}
+    <div class="sched-watched-area" id="sched-watched-area">
+      <div id="schedule-watched" class="sched-watched-list"></div>
     </div>
 
     <div class="sched-search-area" id="sched-search-area">
@@ -39,58 +43,24 @@
   </div>
 
   {# ── Right pane: weekly grid ── #}
-  <div class="schedule-grid-pane" id="schedule-grid">
+  <div class="schedule-grid-pane" id="schedule-grid"
+       hx-get="/schedule/grid" hx-trigger="load" hx-swap="innerHTML">
     <div class="sched-empty">Add sections from the search to build your schedule.</div>
   </div>
 
 </div>
 
 <script>
-  const _savedIds = {{ saved_ids_json | safe }};
-
-  function getSchedule() {
-    return JSON.parse(localStorage.getItem('schedule') || '[]');
-  }
-
-  function setSchedule(ids) {
-    localStorage.setItem('schedule', JSON.stringify(ids));
-  }
-
-  function refreshGrid(ids) {
-    const params = ids.length ? ids.map(id => 'ids=' + encodeURIComponent(id)).join('&') : '';
-    htmx.ajax('GET', '/schedule/grid' + (params ? '?' + params : ''), {
-      target: '#schedule-grid',
-      swap: 'innerHTML'
-    });
-  }
-
-  function toggleSchedule(btn, cn) {
-    let schedule = getSchedule();
-    const inSchedule = schedule.includes(cn);
-    if (inSchedule) {
-      schedule = schedule.filter(id => id !== cn);
-    } else {
-      schedule.push(cn);
-    }
-    setSchedule(schedule);
-    updateAddButton(btn, !inSchedule);
-    refreshGrid(schedule);
-    document.getElementById('save-status').textContent = '';
+  function addToSchedule(cn) {
+    htmx.ajax('POST', '/schedule/add/' + cn, { target: '#schedule-grid', swap: 'innerHTML' });
+    const inp = document.querySelector('.sched-search-input');
+    if (inp) inp.value = '';
+    document.getElementById('schedule-search-results').innerHTML = '';
     closeSearch();
-    document.querySelector('.sched-search-input').value = '';
-    htmx.ajax('GET', '/schedule/search', { target: '#schedule-search-results', swap: 'innerHTML' });
   }
 
   function removeFromSchedule(cn) {
-    let schedule = getSchedule().filter(id => id !== cn);
-    setSchedule(schedule);
-    refreshGrid(schedule);
-    document.getElementById('save-status').textContent = '';
-  }
-
-  function updateAddButton(btn, inSchedule) {
-    if (!btn) return;
-    btn.textContent = inSchedule ? 'Remove' : 'Add';
+    htmx.ajax('DELETE', '/schedule/remove/' + cn, { target: '#schedule-grid', swap: 'innerHTML' });
   }
 
   function openSearch() {
@@ -101,47 +71,17 @@
     document.getElementById('sched-search-area').classList.remove('is-open');
   }
 
+  function toggleWatched() {
+    document.getElementById('sched-watched-area').classList.toggle('is-open');
+  }
+
   document.addEventListener('click', function(e) {
     const area = document.getElementById('sched-search-area');
     if (area && !area.contains(e.target)) closeSearch();
-  });
-
-  async function saveSchedule() {
-    const ids = getSchedule();
-    const statusEl = document.getElementById('save-status');
-    statusEl.textContent = 'Saving…';
-    const fd = new FormData();
-    ids.forEach(id => fd.append('ids', id));
-    const resp = await fetch('/schedule/save', { method: 'POST', body: fd });
-    statusEl.innerHTML = await resp.text();
-  }
-
-  // Always sync from server state — reflects all watched/saved classes
-  if (_savedIds.length > 0) {
-    setSchedule(_savedIds);
-  }
-
-  const _initSchedule = getSchedule();
-  if (_initSchedule.length > 0) {
-    refreshGrid(_initSchedule);
-  }
-
-  document.addEventListener('htmx:afterSwap', function(e) {
-    if (e.detail.target && e.detail.target.id === 'schedule-search-results') {
-      const results = e.detail.target;
-      if (results.children.length > 0 && results.querySelector('.sched-dropdown-item')) {
-        openSearch();
-        const schedule = getSchedule();
-        results.querySelectorAll('.sched-dropdown-item[data-class-number]').forEach(function(item) {
-          const cn = parseInt(item.dataset.classNumber);
-          if (schedule.includes(cn)) {
-            const addEl = item.querySelector('.sched-dropdown-add');
-            if (addEl) { addEl.textContent = 'Added'; addEl.style.color = 'var(--textMuted)'; }
-            item.style.opacity = '0.6';
-            item.style.pointerEvents = 'none';
-          }
-        });
-      }
+    const watched = document.getElementById('sched-watched-area');
+    const toggle = document.getElementById('watched-toggle');
+    if (watched && !watched.contains(e.target) && toggle && !toggle.contains(e.target)) {
+      watched.classList.remove('is-open');
     }
   });
 </script>

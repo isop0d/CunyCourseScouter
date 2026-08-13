@@ -364,6 +364,41 @@
     .sched-dropdown-sub { font-size: 0.78rem; color: var(--textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sched-dropdown-add { font-size: 0.78rem; color: var(--accent); font-weight: 500; flex-shrink: 0; }
     .sched-dropdown-empty { padding: 0.65rem 0.85rem; color: var(--textMuted); font-size: 0.82rem; }
+    .sched-dropdown-item.is-scheduled { cursor: default; opacity: 0.55; }
+    .sched-dropdown-item.is-scheduled:hover { background: transparent; }
+    .sched-dropdown-item.is-scheduled .sched-dropdown-add { color: var(--textMuted); }
+
+    /* Watched-classes dropdown */
+    .btn.btn-sm { font-size: 0.78rem; padding: 0.28rem 0.65rem; }
+    .sched-watched-area { display: none; margin-bottom: 0.5rem; }
+    .sched-watched-area.is-open { display: block; }
+    .sched-watched-list {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px var(--shadow);
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .sched-watched-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      padding: 0.55rem 0.8rem;
+      border-bottom: 1px solid var(--borderSoft);
+    }
+    .sched-watched-item:last-child { border-bottom: none; }
+    .sched-watched-label { font-weight: 600; font-size: 0.85rem; }
+    .sched-watched-sub { font-size: 0.76rem; color: var(--textMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sched-watched-add {
+      font-size: 0.78rem; font-weight: 600; color: oklch(1 0 0);
+      background: var(--accent); border: none; border-radius: 6px;
+      padding: 0.25rem 0.7rem; cursor: pointer; flex-shrink: 0;
+    }
+    .sched-watched-add:hover { opacity: 0.88; }
+    .sched-watched-added { font-size: 0.76rem; color: var(--textMuted); flex-shrink: 0; }
+    .sched-watched-empty { padding: 0.8rem; color: var(--textMuted); font-size: 0.82rem; }
 
     /* Schedule class cards */
     .sched-empty-placeholder {

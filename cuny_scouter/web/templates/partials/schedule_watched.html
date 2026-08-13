@@ -1,0 +1,22 @@
+{% for item in watched_list %}
+<div class="sched-watched-item" data-class-number="{{ item.section.class_number }}">
+  <div style="min-width:0;">
+    <div class="sched-watched-label">{{ item.section.subject }} {{ item.section.course_number }}-{{ item.section.section_code }}</div>
+    <div class="sched-watched-sub">{{ item.section.days_times or 'TBA' }}</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:0.55rem;flex-shrink:0;">
+    <div class="status-{{ item.section.status }}">
+      <span class="status-badge" style="font-size:0.72rem;padding:0.15rem 0.5rem 0.15rem 0.35rem;">
+        <span class="status-dot"></span>{{ 'Waitlist' if item.section.status == 'waitlist' else item.section.status | title }}
+      </span>
+    </div>
+    {% if item.scheduled %}
+    <span class="sched-watched-added">On schedule</span>
+    {% else %}
+    <button class="sched-watched-add" onclick="addToSchedule({{ item.section.class_number }})">Add</button>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="sched-watched-empty">No watched classes yet — watch classes from <a href="/">Browse</a> to get status alerts.</div>
+{% endfor %}

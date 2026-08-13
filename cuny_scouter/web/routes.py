@@ -1,12 +1,10 @@
-import json
 import logging
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Annotated
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
@@ -48,6 +46,19 @@ def _watched_classes(student: Student | None) -> set[int]:
     if not student:
         return set()
     return {w.class_number for w in student.watches if w.active}
+
+
+def _scheduled_ids(student: Student | None, db: Session) -> list[int]:
+    """Student's scheduled section ids, ordered stably for consistent grid colors."""
+    if not student:
+        return []
+    return [
+        e.section_id
+        for e in db.query(ScheduleEntry)
+        .filter(ScheduleEntry.student_id == student.id)
+        .order_by(ScheduleEntry.added_at, ScheduleEntry.id)
+        .all()
+    ]
 
 
 # ── Section browser ──────────────────────────────────────────────────────────
@@ -295,13 +306,6 @@ async def add_watch(class_number: int, request: Request, db: Session = Depends(g
         existing.deactivated_at = None
     else:
         db.add(Watch(student_id=student.id, class_number=class_number))
-
-    entry = db.query(ScheduleEntry).filter(
-        ScheduleEntry.student_id == student.id,
-        ScheduleEntry.section_id == class_number,
-    ).first()
-    if not entry:
-        db.add(ScheduleEntry(student_id=student.id, section_id=class_number))
     db.commit()
 
     return templates.TemplateResponse(request, "partials/watch_button.html", {
@@ -327,10 +331,6 @@ async def remove_watch(class_number: int, request: Request, db: Session = Depend
     if watch:
         watch.active = False
         watch.deactivated_at = datetime.now(timezone.utc)
-    db.query(ScheduleEntry).filter(
-        ScheduleEntry.student_id == student.id,
-        ScheduleEntry.section_id == class_number,
-    ).delete()
     db.commit()
 
     return templates.TemplateResponse(request, "partials/watch_button.html", {
@@ -488,57 +488,29 @@ def _compute_grid_events(sections, meetings_by_section):
     return events, unscheduled
 
 
-@router.get("/schedule", response_class=HTMLResponse)
-async def schedule_page(request: Request, db: Session = Depends(get_session)):
-    student = _current_student(request, db)
-    saved_ids: list[int] = []
-    if student:
-        saved_ids = [
-            e.section_id
-            for e in db.query(ScheduleEntry).filter(ScheduleEntry.student_id == student.id).all()
-        ]
-    return templates.TemplateResponse(request, "schedule.html", {
-        "student": student,
-        "watching": _watched_classes(student),
-        "saved_ids_json": json.dumps(saved_ids),
-    })
+def _render_schedule_panels(request, background_tasks, student, db):
+    """Single render path for the schedule grid + sidebar + watched dropdown.
 
-
-@router.get("/schedule/grid", response_class=HTMLResponse)
-async def schedule_grid_partial(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    ids: Annotated[list[int], Query()] = [],
-    db: Session = Depends(get_session),
-):
-    student = _current_student(request, db)
+    Server-authoritative: reads the student's ScheduleEntry rows (no client state).
+    Returns the schedule_panels.html partial (grid target + OOB sidebar + OOB watched list).
+    """
     watching = _watched_classes(student)
-
-    if not ids:
-        return templates.TemplateResponse(request, "partials/schedule_panels.html", {
-            "events": [],
-            "unscheduled": [],
-            "days": _DAY_NAMES[:5],
-            "hour_labels": _HOUR_LABELS,
-            "grid_start": _GRID_START,
-            "grid_span": _GRID_SPAN,
-            "grid_height": _GRID_HEIGHT,
-            "class_list": [],
-            "color_map": {},
-            "watching": watching,
-        })
+    ids = _scheduled_ids(student, db)
+    scheduled_set = set(ids)
 
     section_map = {
         s.class_number: s
         for s in db.query(Section).filter(Section.class_number.in_(ids)).all()
-    }
-    db_meetings = db.query(SectionMeeting).filter(SectionMeeting.section_id.in_(ids)).all()
-
+    } if ids else {}
+    db_meetings = (
+        db.query(SectionMeeting).filter(SectionMeeting.section_id.in_(ids)).all()
+        if ids else []
+    )
     meetings_by_section: dict[int, list] = defaultdict(list)
     for m in db_meetings:
         meetings_by_section[m.section_id].append(m)
 
-    # Build class_list in ids order (preserves insertion order from localStorage)
+    # Build class_list in scheduled order for stable grid colors
     color_map: dict[int, int] = {}
     class_list = []
     for idx, cn in enumerate(ids):
@@ -548,9 +520,22 @@ async def schedule_grid_partial(
             color_map[cn] = cidx
             class_list.append({"section": s, "color_idx": cidx, "prof": None})
 
-    # Fetch professor info for class list; kick off background RMP fetch for unknowns
     all_sections = list(section_map.values())
-    prof_map, missing = _fetch_professor_map(db, all_sections)
+
+    # Watched-classes dropdown: active watches with a "scheduled" flag
+    watched_list = []
+    if student:
+        for w in sorted(student.watches, key=lambda x: x.created_at, reverse=True):
+            if not w.active:
+                continue
+            sec = section_map.get(w.class_number) or db.get(Section, w.class_number)
+            if sec is None:
+                continue
+            watched_list.append({"section": sec, "scheduled": w.class_number in scheduled_set})
+
+    # Professor info for scheduled cards (+ background RMP fetch for unknowns)
+    prof_sections = all_sections + [i["section"] for i in watched_list]
+    prof_map, missing = _fetch_professor_map(db, prof_sections)
     if missing:
         background_tasks.add_task(_rmp_fetch_bg, missing)
     for item in class_list:
@@ -572,7 +557,74 @@ async def schedule_grid_partial(
         "class_list": class_list,
         "color_map": color_map,
         "watching": watching,
+        "watched_list": watched_list,
     })
+
+
+@router.get("/schedule", response_class=HTMLResponse)
+async def schedule_page(request: Request, db: Session = Depends(get_session)):
+    student = _current_student(request, db)
+    return templates.TemplateResponse(request, "schedule.html", {
+        "student": student,
+        "watching": _watched_classes(student),
+    })
+
+
+@router.get("/schedule/grid", response_class=HTMLResponse)
+async def schedule_grid_partial(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+):
+    student = _current_student(request, db)
+    return _render_schedule_panels(request, background_tasks, student, db)
+
+
+@router.post("/schedule/add/{class_number}", response_class=HTMLResponse)
+async def schedule_add(
+    class_number: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+):
+    student = _current_student(request, db)
+    if not student:
+        return HTMLResponse('<a href="/auth/discord" class="btn btn-discord btn-sm">Login to add classes</a>')
+
+    if db.get(Section, class_number) is None:
+        raise HTTPException(status_code=404)
+
+    existing = db.query(ScheduleEntry).filter(
+        ScheduleEntry.student_id == student.id,
+        ScheduleEntry.section_id == class_number,
+    ).first()
+    if not existing:
+        db.add(ScheduleEntry(student_id=student.id, section_id=class_number))
+        db.commit()
+
+    db.refresh(student)
+    return _render_schedule_panels(request, background_tasks, student, db)
+
+
+@router.delete("/schedule/remove/{class_number}", response_class=HTMLResponse)
+async def schedule_remove(
+    class_number: int,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_session),
+):
+    student = _current_student(request, db)
+    if not student:
+        raise HTTPException(status_code=401)
+
+    db.query(ScheduleEntry).filter(
+        ScheduleEntry.student_id == student.id,
+        ScheduleEntry.section_id == class_number,
+    ).delete()
+    db.commit()
+
+    db.refresh(student)
+    return _render_schedule_panels(request, background_tasks, student, db)
 
 
 @router.get("/schedule/search", response_class=HTMLResponse)
@@ -584,6 +636,8 @@ async def schedule_search(
 ):
     if not q:
         return HTMLResponse("")
+    student = _current_student(request, db)
+    scheduled_set = set(_scheduled_ids(student, db))
     base_query = db.query(Section).order_by(Section.subject, Section.course_number, Section.section_code)
     filtered = _apply_filters(base_query, q, "", "", "")
     sections = filtered.limit(_PAGE_SIZE).all()
@@ -594,53 +648,8 @@ async def schedule_search(
         "courses": _group_into_courses(sections, prof_map),
         "is_htmx": True,
         "q": q,
+        "scheduled_set": scheduled_set,
     })
-
-
-@router.post("/schedule/save", response_class=HTMLResponse)
-async def schedule_save(
-    request: Request,
-    ids: Annotated[list[int], Form()] = [],
-    db: Session = Depends(get_session),
-):
-    student = _current_student(request, db)
-    if not student:
-        return HTMLResponse('<a href="/auth/discord" class="btn btn-discord btn-sm">Login to save</a>')
-
-    existing = {
-        e.section_id
-        for e in db.query(ScheduleEntry).filter(ScheduleEntry.student_id == student.id).all()
-    }
-    new_ids = set(ids)
-
-    now = datetime.now(timezone.utc)
-    for sid in existing - new_ids:
-        db.query(ScheduleEntry).filter(
-            ScheduleEntry.student_id == student.id,
-            ScheduleEntry.section_id == sid,
-        ).delete()
-        watch = db.query(Watch).filter(
-            Watch.student_id == student.id,
-            Watch.class_number == sid,
-            Watch.active == True,
-        ).first()
-        if watch:
-            watch.active = False
-            watch.deactivated_at = now
-    for sid in new_ids - existing:
-        db.add(ScheduleEntry(student_id=student.id, section_id=sid))
-        watch = db.query(Watch).filter(
-            Watch.student_id == student.id,
-            Watch.class_number == sid,
-        ).first()
-        if watch:
-            watch.active = True
-            watch.deactivated_at = None
-        else:
-            db.add(Watch(student_id=student.id, class_number=sid))
-    db.commit()
-
-    return HTMLResponse('<span class="save-status">Saved ✓</span>')
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

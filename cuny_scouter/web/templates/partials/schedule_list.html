@@ -3,6 +3,11 @@
   <div class="sched-card-body">
     <div class="sched-card-code">
       {{ item.section.subject }} {{ item.section.course_number }}
+      <div class="status-{{ item.section.status }}" style="display:inline-block;">
+        <span class="status-badge" style="font-size:0.68rem;padding:0.12rem 0.45rem 0.12rem 0.32rem;">
+          <span class="status-dot"></span>{{ 'Waitlist' if item.section.status == 'waitlist' else item.section.status | title }}
+        </span>
+      </div>
       {% if watching is defined and item.section.class_number in watching %}
       <span class="watch-badge">Watching</span>
       {% endif %}
