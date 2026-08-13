@@ -1,15 +1,13 @@
 """
-Discord webhook notifier with three-layer dedup:
-  1. DB unique index on (watch_id, from_status, to_status, day) — hard stop
-  2. 60-minute cooldown window — protects midnight day-rollover edge case
-  3. Watch auto-deactivation after first alert — prevents oscillation spam
+Discord webhook notifier with time-windowed dedup:
+  - 10-minute cooldown per (watch_id, to_status) prevents oscillation spam
+  - Watches stay active until the user removes the class (recurring alerts)
 """
 import logging
 from datetime import datetime, timedelta, timezone
 
 import requests
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from cuny_scouter.diff import StatusEvent
@@ -17,7 +15,7 @@ from cuny_scouter.db.models import Notification, Watch, Section
 
 log = logging.getLogger(__name__)
 
-COOLDOWN_MINUTES = 60
+COOLDOWN_MINUTES = 10
 
 STATUS_LABEL = {
     "open": "Open",
@@ -121,25 +119,13 @@ def dispatch_notifications(
             if not success:
                 continue
 
-            try:
-                db.add(Notification(
-                    watch_id=watch.id,
-                    run_id=event.run_id,
-                    from_status=event.from_status,
-                    to_status=event.to_status,
-                    payload={"discord_id": discord_id},
-                ))
-                db.flush()
-            except IntegrityError:
-                db.rollback()
-                log.info(f"Dedup: notification already sent for watch {watch.id} today.")
-                continue
-
-            if watch.auto_deactivate and event.to_status == "open":
-                watch.active = False
-                watch.deactivated_at = datetime.now(timezone.utc)
-                log.info(f"Auto-deactivated watch {watch.id} after open alert.")
-
+            db.add(Notification(
+                watch_id=watch.id,
+                run_id=event.run_id,
+                from_status=event.from_status,
+                to_status=event.to_status,
+                payload={"discord_id": discord_id},
+            ))
             db.commit()
             sent += 1
             log.info(f"Notified discord_id={discord_id} about class {event.class_number} → {event.to_status}")

@@ -99,7 +99,7 @@ class Watch(Base):
     student_id: Mapped[int] = mapped_column(Integer, ForeignKey("students.id", ondelete="CASCADE"))
     class_number: Mapped[int] = mapped_column(Integer)
     notify_on: Mapped[str] = mapped_column(String(20), default="any")  # open|closed|waitlist|any
-    auto_deactivate: Mapped[bool] = mapped_column(Boolean, default=True)
+    auto_deactivate: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=_now)
     deactivated_at: Mapped[datetime | None] = mapped_column(nullable=True)
@@ -126,10 +126,6 @@ class Notification(Base):
     payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     watch: Mapped["Watch"] = relationship(back_populates="notifications")
-
-    __table_args__ = (
-        UniqueConstraint("watch_id", "from_status", "to_status", name="uq_notifications_dedup"),
-    )
 
 
 class SectionMeeting(Base):

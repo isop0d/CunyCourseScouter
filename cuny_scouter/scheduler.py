@@ -199,9 +199,29 @@ def _run_fast_poll(grouped: dict[str, list[tuple[int, str]]]) -> None:
     db.refresh(run)
 
     all_records = []
-    prev_snapshots = [(cn, status) for cn, status in flat_watches]
     failed: list[int] = []
     now = datetime.now(timezone.utc)
+
+    # Baseline: last completed FAST run's snapshots — immune to full-poll overwrites
+    watched_class_numbers = [cn for cn, _ in flat_watches]
+    prev_fast_run = (
+        db.query(ScrapeRun)
+        .filter(ScrapeRun.subject == "FAST", ScrapeRun.status.in_(["ok", "partial"]))
+        .order_by(ScrapeRun.finished_at.desc())
+        .first()
+    )
+    if prev_fast_run:
+        prev_snap_rows = (
+            db.query(SectionSnapshot)
+            .filter(
+                SectionSnapshot.run_id == prev_fast_run.id,
+                SectionSnapshot.class_number.in_(watched_class_numbers),
+            )
+            .all()
+        )
+        prev_snapshots = [(s.class_number, s.status) for s in prev_snap_rows]
+    else:
+        prev_snapshots = []  # First cycle — all unknown, notifier skips them
 
     for i, (class_number, _) in enumerate(flat_watches):
         if i > 0:
@@ -287,28 +307,6 @@ def _run_poll(label: str, subject_pairs: list[tuple[str, str]], delay: float = 1
         db.commit()
 
         log.info(f"{label} poll complete. sections={len(all_records)}, failed={len(failed)}")
-
-        # Diff and notify
-        prev_run = (
-            db.query(ScrapeRun)
-            .filter(ScrapeRun.status.in_(["ok", "partial"]), ScrapeRun.id != run.id)
-            .order_by(ScrapeRun.finished_at.desc())
-            .first()
-        )
-        if prev_run:
-            prev_snapshots = [
-                (s.class_number, s.status)
-                for s in db.query(SectionSnapshot)
-                .filter(SectionSnapshot.run_id == prev_run.id)
-                .all()
-            ]
-            events = compute_diff(all_records, prev_snapshots, run.id)
-            if events:
-                log.info(f"Detected {len(events)} status change(s).")
-                sent = dispatch_notifications(db, events, settings.discord_webhook_url)
-                log.info(f"Sent {sent} notification(s).")
-            else:
-                log.info("No status changes detected.")
 
     except Exception as exc:
         run.status = "error"
